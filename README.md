@@ -20,9 +20,10 @@ actually used by the build; the rest is optional reference).
 | `krea2` | ComfyUI + Krea 2 image generation | `make krea2` | <http://localhost:8188> |
 | `ideogram` | ComfyUI + Ideogram 4 (typography/design) | `make ideogram` | <http://localhost:8189> |
 | `ltx` | ComfyUI + LTX-2.3 video generation | `make ltx` | <http://localhost:8190> |
+| `minimax` | ComfyUI + MiniMax H3 video generation | `make minimax` | <http://localhost:8191> |
 
 Ports are the defaults; override them in `.env` (`AI_TOOLKIT_PORT`,
-`KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`).
+`KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`, `MINIMAX_PORT`).
 
 Each app gets its own container because their Python stacks conflict
 (different torch/transformers pins). They share the NAS models tree, so a
@@ -46,7 +47,7 @@ model downloaded once is available to all.
 git clone git@github.com:akitaonrails/aitrepreneur-docker.git
 cd aitrepreneur-docker
 make setup          # creates .env — edit it to add your HF_TOKEN
-make build          # builds all four images (long first time)
+make build          # builds all five images (long first time)
 make up             # ai-toolkit at http://localhost:8675
 make krea2          # ComfyUI+Krea2 at http://localhost:8188
 ```
@@ -56,8 +57,9 @@ Model files are **not** in the images: each ComfyUI app checks
 missing from the NAS models tree. First start of an app therefore takes a
 while — watch with `make logs-krea2`.
 
-Day to day: `make up` / `make krea2` / `make ideogram` / `make ltx`,
-`make stop-<app>`, `make logs-<app>`, `make shell-<app>`, `make down`.
+Day to day: `make up` / `make krea2` / `make ideogram` / `make ltx` /
+`make minimax`, `make stop-<app>`, `make logs-<app>`, `make shell-<app>`,
+`make down`.
 
 ## Data layout
 
@@ -82,7 +84,8 @@ never touches data, and nothing big can land in a container's writable layer
 
 The `ideogram` container also seeds the bundled Ultra workflow into its UI
 (`comfyui/apps/ideogram/workflows/`) and mounts the template images read-only
-at `input/templates`. ai-toolkit mounts the NAS models tree read-only at
+at `input/templates`; `minimax` seeds its Ultra and Ultra Turbo workflows the
+same way (`comfyui/apps/minimax/workflows/`). ai-toolkit mounts the NAS models tree read-only at
 `/comfyui-models` so training configs can reference existing checkpoints.
 
 ## How an app is defined
@@ -133,3 +136,7 @@ the torch/CUDA compatibility notes.
 - **krea2 node fix.** The reference script clones `ComfyUI-Krea2T-Enhancer`
   but forgot to list it in `REQUIRED_NODES`, so its Python requirements were
   never installed. Here every cloned node gets its requirements.
+- **minimax from a Windows installer.** The MiniMax H3 reference is a Windows
+  `.bat` that unpacks ComfyUI portable v0.33.1 with its bundled Python stack.
+  Here the same node set and models run in the shared Linux image (torch
+  2.8.0+cu128), with ComfyUI pinned to the matching `v0.33.1` tag.

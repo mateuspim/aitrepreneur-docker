@@ -28,6 +28,8 @@ ComfyUI refs per app:
   model support — the krea2 build fails fast if the ref is too old).
 - `ltx` is pinned to `v0.21.1`, the version its workflow and the pinned
   ComfyUI-LTXVideo commit were built against. Bump both together, carefully.
+- `minimax` is pinned to `v0.33.1`, the ComfyUI portable release the
+  reference installer ships and the V3 workflows were built against.
 
 ## Custom nodes (ComfyUI apps)
 
@@ -77,8 +79,8 @@ recreates it as empty root-owned directories — the app silently loses its
 project name. Right after renaming, recreate everything:
 
 ```bash
-docker rm -f ai-toolkit comfyui-krea2 comfyui-ideogram comfyui-ltx 2>/dev/null
-docker compose up -d ai-toolkit   # plus make krea2 / ideogram / ltx as needed
+docker rm -f ai-toolkit comfyui-krea2 comfyui-ideogram comfyui-ltx comfyui-minimax 2>/dev/null
+docker compose up -d ai-toolkit   # plus make krea2 / ideogram / ltx / minimax as needed
 ```
 
 Data and models are untouched — everything lives on volumes.

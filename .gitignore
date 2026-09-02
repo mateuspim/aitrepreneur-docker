@@ -9,3 +9,4 @@
 docs/reference/*
 !docs/reference/README.md
 comfyui/apps/ideogram/workflows/*.json
+comfyui/apps/minimax/workflows/*.json

@@ -1,6 +1,6 @@
-# Four independent GPU apps, one per container. ai-toolkit starts with plain
+# Five independent GPU apps, one per container. ai-toolkit starts with plain
 # `docker compose up`; the ComfyUI apps are behind profiles so heavyweight
-# services only start when asked for (make krea2 / ideogram / ltx).
+# services only start when asked for (make krea2 / ideogram / ltx / minimax).
 #
 # Legacy nvidia runtime instead of `gpus: all`: the latter reads the CDI spec
 # (/etc/cdi/nvidia.yaml), which goes stale on every driver update; the runtime
@@ -100,6 +100,27 @@ services:
       - ${COMFYUI_MODELS_DIR:-/mnt/gigachad/comfyui/models}:/comfyui/models
       - ./data/ltx:/data
       - ${AUX_CACHE_DIR:-./data/ltx/cache}:/data/cache
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      HF_TOKEN: ${HF_TOKEN:-}
+
+  minimax:
+    <<: *gpu
+    profiles: [minimax]
+    build:
+      context: ./comfyui
+      args:
+        APP: minimax
+        COMFY_REF: ${COMFY_REF_MINIMAX:-v0.33.1}
+        CACHEBUST: ${CACHEBUST:-0}
+    image: comfyui-minimax:local
+    container_name: comfyui-minimax
+    ports:
+      - "${MINIMAX_PORT:-8191}:8188"
+    volumes:
+      - ${COMFYUI_MODELS_DIR:-/mnt/gigachad/comfyui/models}:/comfyui/models
+      - ./data/minimax:/data
+      - ${AUX_CACHE_DIR:-./data/minimax/cache}:/data/cache
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       HF_TOKEN: ${HF_TOKEN:-}

@@ -1,0 +1,16 @@
+# <folder> <git-url> [git-ref]
+# From MINIMAX_H3_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL-V3.bat (the reference is
+# a Windows portable installer; same node set, cloned unpinned like it does).
+ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git
+rgthree-comfy https://github.com/rgthree/rgthree-comfy.git
+ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git
+ComfyUI-VideoHelperSuite https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
+ComfyUI-Spectrum-MiniMax-H3 https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3.git
+ComfyUI-MiniMaxH3-Director https://github.com/seesee75-commits/ComfyUI-MiniMaxH3-Director.git
+ComfyUI-Fantastic-MiniMaxH3-PromptBuilder https://github.com/Adudeguyman/ComfyUI-Fantastic-MiniMaxH3-PromptBuilder.git
+ComfyUi-Scale-Image-to-Total-Pixels-Advanced https://github.com/BigStationW/ComfyUi-Scale-Image-to-Total-Pixels-Advanced.git
+ComfyUI-MiniMaxH3-T1-Latent https://github.com/aitrepreneur/ComfyUI-MiniMaxH3-T1-Latent.git
+ComfyUI-H3-Motion-Context-MultiRef-V3 https://github.com/Aitrepreneur/ComfyUI-H3-Motion-Context-MultiRef-V3.git
+MaskVidExperiments https://github.com/drozbay/MaskVidExperiments.git
+ComfyUI-NKD-Basic-Tools https://github.com/Nekodificador/ComfyUI-NKD-Basic-Tools.git
+Comfyui_Minimax_h3_latent_Upscaler https://github.com/LBH-123-AI/Comfyui_Minimax_h3_latent_Upscaler.git

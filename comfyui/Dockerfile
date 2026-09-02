@@ -1,4 +1,5 @@
-# Parameterized ComfyUI image — one build per app (krea2, ideogram, ltx).
+# Parameterized ComfyUI image — one build per app (krea2, ideogram, ltx,
+# minimax).
 #
 # Each app under apps/<name>/ declares what makes it unique:
 #   nodes.txt        custom nodes to bake in (dir url [git-ref])

@@ -1,0 +1,7 @@
+# The reference installer (MINIMAX_H3_ULTRA-...V3.bat) is a Windows portable
+# build: it adds no pip pins of its own and relies on the stack bundled with
+# ComfyUI v0.33.1. Torch lines are prepended from the Dockerfile ARGs at build
+# time; only the packages the node requirements are known to churn are pinned.
+opencv-python-headless==4.12.0.88
+Pillow>=11.0.0
+numpy>=1.26,<3
