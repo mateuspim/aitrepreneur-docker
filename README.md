@@ -26,8 +26,8 @@ Ports are the defaults; override them in `.env` (`AI_TOOLKIT_PORT`,
 `KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`, `MINIMAX_PORT`).
 
 Each app gets its own container because their Python stacks conflict
-(different torch/transformers pins). They share the NAS models tree, so a
-model downloaded once is available to all.
+(different torch/transformers pins). They share the models tree under
+`/mnt/tools`, so a model downloaded once is available to all.
 
 ## Prerequisites
 
@@ -37,14 +37,14 @@ model downloaded once is available to all.
   driver updates until regenerated
   (`sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`).
 - Docker with Compose v2; ~20 GB image disk per app.
-- The NAS mounted at `/mnt/gigachad` (models land there — LTX alone is ~40 GB).
+- Models and caches stored at `/mnt/tools` (models land there — LTX alone is ~40 GB).
 - One RTX 5090 = run one heavy app at a time (`make stop-krea2` before
   `make ltx`, etc.). The containers themselves can coexist.
 
 ## Quick start
 
 ```bash
-git clone git@github.com:akitaonrails/aitrepreneur-docker.git
+git clone https://github.com/mateuspim/aitrepreneur-docker.git
 cd aitrepreneur-docker
 make setup          # creates .env — edit it to add your HF_TOKEN
 make build          # builds all five images (long first time)
@@ -72,20 +72,20 @@ never touches data, and nothing big can land in a container's writable layer
     output/, input/, user/    ComfyUI apps: results, uploads, UI state
     datasets/, outputs/, db/  ai-toolkit: training data, LoRAs, job db
 
-/mnt/gigachad/comfyui/models/            # big, on the NAS
+/mnt/tools/comfyui/models/            # big, shared model storage
     diffusion_models/, text_encoders/, vae/, loras/, unet/, ...
                  # shared ComfyUI-layout tree: your existing models plus
                  # whatever the apps download (skip-if-exists)
     hf-cache/    # ai-toolkit's Hugging Face cache
     aitk-cache/  # torch.hub + misc library caches, shared by all apps
 
-/mnt/gigachad/comfyui/ideogram-templates/  # extracted reference templates
+/mnt/tools/comfyui/ideogram-templates/  # extracted reference templates
 ```
 
 The `ideogram` container also seeds the bundled Ultra workflow into its UI
 (`comfyui/apps/ideogram/workflows/`) and mounts the template images read-only
 at `input/templates`; `minimax` seeds its Ultra and Ultra Turbo workflows the
-same way (`comfyui/apps/minimax/workflows/`). ai-toolkit mounts the NAS models tree read-only at
+same way (`comfyui/apps/minimax/workflows/`). ai-toolkit mounts the shared models tree read-only at
 `/comfyui-models` so training configs can reference existing checkpoints.
 
 ## How an app is defined
@@ -130,7 +130,7 @@ the torch/CUDA compatibility notes.
 - **Install at build, not at boot.** The scripts install apt/pip/nodes on
   every fresh pod; here that's baked into images, and pods'/containers' state
   can't drift — rebuilding is the only way anything changes.
-- **Models on the NAS, atomically.** Downloads go to `.part` files and are
+- **Models on shared storage, atomically.** Downloads go to `.part` files and are
   renamed only when complete, so an interrupted download is never mistaken
   for a finished model (the scripts' skip-if-exists check has that flaw).
 - **krea2 node fix.** The reference script clones `ComfyUI-Krea2T-Enhancer`

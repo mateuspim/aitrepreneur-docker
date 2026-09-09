@@ -32,7 +32,7 @@ services:
       - ${OUTPUTS_DIR:-./data/ai-toolkit/outputs}:/data/outputs
       - ${HF_CACHE_DIR:-./data/ai-toolkit/hf-cache}:/data/hf-cache
       - ${AUX_CACHE_DIR:-./data/ai-toolkit/cache}:/data/cache
-      - ${COMFYUI_MODELS_DIR:-/mnt/gigachad/comfyui/models}:/comfyui-models:ro
+      - ${COMFYUI_MODELS_DIR:-/mnt/tools/comfyui/models}:/comfyui-models:ro
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       HF_TOKEN: ${HF_TOKEN:-}
@@ -52,7 +52,7 @@ services:
     ports:
       - "${KREA2_PORT:-8188}:8188"
     volumes:
-      - ${COMFYUI_MODELS_DIR:-/mnt/gigachad/comfyui/models}:/comfyui/models
+      - ${COMFYUI_MODELS_DIR:-/mnt/tools/comfyui/models}:/comfyui/models
       - ./data/krea2:/data
       - ${AUX_CACHE_DIR:-./data/krea2/cache}:/data/cache
     environment:
@@ -73,12 +73,12 @@ services:
     ports:
       - "${IDEOGRAM_PORT:-8189}:8188"
     volumes:
-      - ${COMFYUI_MODELS_DIR:-/mnt/gigachad/comfyui/models}:/comfyui/models
+      - ${COMFYUI_MODELS_DIR:-/mnt/tools/comfyui/models}:/comfyui/models
       - ./data/ideogram:/data
       - ${AUX_CACHE_DIR:-./data/ideogram/cache}:/data/cache
       # Template reference images for the bundled Ultra workflow (extracted
       # from docs/reference/IDEOGRAM-TEMPLATES.zip).
-      - ${IDEOGRAM_TEMPLATES_DIR:-/mnt/gigachad/comfyui/ideogram-templates}:/data/input/templates:ro
+      - ${IDEOGRAM_TEMPLATES_DIR:-/mnt/tools/comfyui/ideogram-templates}:/data/input/templates:ro
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       HF_TOKEN: ${HF_TOKEN:-}
@@ -97,7 +97,7 @@ services:
     ports:
       - "${LTX_PORT:-8190}:8188"
     volumes:
-      - ${COMFYUI_MODELS_DIR:-/mnt/gigachad/comfyui/models}:/comfyui/models
+      - ${COMFYUI_MODELS_DIR:-/mnt/tools/comfyui/models}:/comfyui/models
       - ./data/ltx:/data
       - ${AUX_CACHE_DIR:-./data/ltx/cache}:/data/cache
     environment:
@@ -118,7 +118,7 @@ services:
     ports:
       - "${MINIMAX_PORT:-8191}:8188"
     volumes:
-      - ${COMFYUI_MODELS_DIR:-/mnt/gigachad/comfyui/models}:/comfyui/models
+      - ${COMFYUI_MODELS_DIR:-/mnt/tools/comfyui/models}:/comfyui/models
       - ./data/minimax:/data
       - ${AUX_CACHE_DIR:-./data/minimax/cache}:/data/cache
     environment:
