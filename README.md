@@ -21,9 +21,10 @@ actually used by the build; the rest is optional reference).
 | `ideogram` | ComfyUI + Ideogram 4 (typography/design) | `make ideogram` | <http://localhost:8189> |
 | `ltx` | ComfyUI + LTX-2.3 video generation | `make ltx` | <http://localhost:8190> |
 | `minimax` | ComfyUI + MiniMax H3 video generation | `make minimax` | <http://localhost:8191> |
+| `anima` | ComfyUI + ANIMA 1.0 Ultra Anime | `make anima` | <http://localhost:8192> |
 
 Ports are the defaults; override them in `.env` (`AI_TOOLKIT_PORT`,
-`KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`, `MINIMAX_PORT`).
+`KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`, `MINIMAX_PORT`, `ANIMA_PORT`).
 
 Each app gets its own container because their Python stacks conflict
 (different torch/transformers pins). They share the models tree under
@@ -38,7 +39,7 @@ Each app gets its own container because their Python stacks conflict
   (`sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`).
 - Docker with Compose v2; ~20 GB image disk per app.
 - Models and caches stored at `/mnt/gungnir` (models land there — LTX alone is ~40 GB).
-- One RTX 5090 = run one heavy app at a time (`make stop-krea2` before
+- One RTX 4080 = run one heavy app at a time (`make stop-krea2` before
   `make ltx`, etc.). The containers themselves can coexist.
 
 ## Quick start
@@ -47,7 +48,7 @@ Each app gets its own container because their Python stacks conflict
 git clone https://github.com/mateuspim/aitrepreneur-docker.git
 cd aitrepreneur-docker
 make setup          # creates .env — edit it to add your HF_TOKEN
-make build          # builds all five images (long first time)
+make build          # builds all six images (long first time)
 make up             # ai-toolkit at http://localhost:8675
 make krea2          # ComfyUI+Krea2 at http://localhost:8188
 ```
@@ -58,7 +59,7 @@ missing from the NAS models tree. First start of an app therefore takes a
 while — watch with `make logs-krea2`.
 
 Day to day: `make up` / `make krea2` / `make ideogram` / `make ltx` /
-`make minimax`, `make stop-<app>`, `make logs-<app>`, `make shell-<app>`,
+`make minimax` / `make anima`, `make stop-<app>`, `make logs-<app>`, `make shell-<app>`,
 `make down`.
 
 ## Data layout
@@ -85,7 +86,8 @@ never touches data, and nothing big can land in a container's writable layer
 The `ideogram` container also seeds the bundled Ultra workflow into its UI
 (`comfyui/apps/ideogram/workflows/`) and mounts the template images read-only
 at `input/templates`; `minimax` seeds its Ultra and Ultra Turbo workflows the
-same way (`comfyui/apps/minimax/workflows/`). ai-toolkit mounts the shared models tree read-only at
+same way (`comfyui/apps/minimax/workflows/`); `anima` seeds its ANIMA Base Ultra
+workflow (`comfyui/apps/anima/workflows/`). ai-toolkit mounts the shared models tree read-only at
 `/comfyui-models` so training configs can reference existing checkpoints.
 
 ## How an app is defined
