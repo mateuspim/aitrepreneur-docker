@@ -1,0 +1,42 @@
+# <path relative to models/> <url>
+# From ANIMA_BASE_ULTRA-MODELS-NODES_INSTALL.bat
+# HF source: https://huggingface.co/Aitrepreneur/FLX/resolve/main
+# YOLO11 source: https://huggingface.co/Ultralytics/YOLO11/resolve/main
+
+# --- Upscalers ---
+upscale_models/4x-ClearRealityV1.pth https://huggingface.co/Aitrepreneur/FLX/resolve/main/4x-ClearRealityV1.pth?download=true
+upscale_models/4x_foolhardy_Remacri.pth https://huggingface.co/Aitrepreneur/FLX/resolve/main/4x_foolhardy_Remacri.pth?download=true
+
+# --- ControlNet / Anima LLLite ---
+controlnet/anima-lllite-any-test-like-1-step2000.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima-lllite-any-test-like-1-step2000.safetensors?download=true
+controlnet/anima-lllite-depth-1.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima-lllite-depth-1.safetensors?download=true
+controlnet/anima-lllite-lineart-1.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima-lllite-lineart-1.safetensors?download=true
+controlnet/anima-lllite-pose-1.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima-lllite-pose-1.safetensors?download=true
+controlnet/anima-lllite-inpainting-v1.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima-lllite-inpainting-v1.safetensors?download=true
+
+# --- LoRAs ---
+loras/anima-highres-aesthetic-boost.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima-highres-aesthetic-boost.safetensors?download=true
+loras/anima_p3_rdbt_v0.29.b.122.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima_p3_rdbt_v0.29.b.122.safetensors?download=true
+loras/anima-preview-3-masterpieces-v5.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima-preview-3-masterpieces-v5.safetensors?download=true
+loras/anima-turbo-lora-v0.1.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima-turbo-lora-v0.1.safetensors?download=true
+
+# --- Diffusion Models ---
+diffusion_models/anima-base-v1.0.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anima-base-v1.0.safetensors?download=true
+
+# --- Ultralytics BBOX ---
+ultralytics/bbox/Eyeful_v2-Paired.pt https://huggingface.co/Aitrepreneur/FLX/resolve/main/Eyeful_v2-Paired.pt?download=true
+ultralytics/bbox/face_yolov9c.pt https://huggingface.co/Aitrepreneur/FLX/resolve/main/face_yolov9c.pt?download=true
+ultralytics/bbox/hand_yolov9c.pt https://huggingface.co/Aitrepreneur/FLX/resolve/main/hand_yolov9c.pt?download=true
+
+# --- Ultralytics SEGM ---
+ultralytics/segm/ntd11_anime_nsfw_segm_v5-variant1.pt https://huggingface.co/Aitrepreneur/FLX/resolve/main/ntd11_anime_nsfw_segm_v5-variant1.pt?download=true
+ultralytics/segm/yolo11m-seg.pt https://huggingface.co/Ultralytics/YOLO11/resolve/main/yolo11m-seg.pt?download=true
+
+# --- VAE ---
+vae/qwen_image_vae.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/qwen_image_vae.safetensors?download=true
+
+# --- Text Encoders ---
+text_encoders/qwen_3_06b_base.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/qwen_3_06b_base.safetensors?download=true
+
+# --- SAMs ---
+sams/sam_vit_b_01ec64.pth https://huggingface.co/Aitrepreneur/FLX/resolve/main/sam_vit_b_01ec64.pth?download=true

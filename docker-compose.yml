@@ -124,3 +124,24 @@ services:
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       HF_TOKEN: ${HF_TOKEN:-}
+
+  anima:
+    <<: *gpu
+    profiles: [anima]
+    build:
+      context: ./comfyui
+      args:
+        APP: anima
+        COMFY_REF: ${COMFY_REF_ANIMA:-v0.21.1}
+        CACHEBUST: ${CACHEBUST:-0}
+    image: comfyui-anima:local
+    container_name: comfyui-anima
+    ports:
+      - "${ANIMA_PORT:-8192}:8188"
+    volumes:
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
+      - ./data/anima:/data
+      - ${AUX_CACHE_DIR:-./data/anima/cache}:/data/cache
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      HF_TOKEN: ${HF_TOKEN:-}

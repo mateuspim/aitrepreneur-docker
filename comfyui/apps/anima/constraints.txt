@@ -1,0 +1,8 @@
+# Pins from ANIMA_BASE_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat (torch lines are
+# prepended from the Dockerfile ARGs at build time). ComfyUI pinned to v0.21.1.
+transformers==4.51.3
+tokenizers>=0.21,<0.22
+timm==1.0.15
+opencv-python-headless==4.12.0.88
+Pillow>=11.0.0
+numpy>=1.26,<3

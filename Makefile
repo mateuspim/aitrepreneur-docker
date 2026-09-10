@@ -1,8 +1,8 @@
 # Convenience wrapper around docker compose. Run `make help` for a summary.
-# APP targets: ai-toolkit (default profile), krea2, ideogram, ltx, minimax.
+# APP targets: ai-toolkit (default profile), krea2, ideogram, ltx, minimax, anima.
 
 .DEFAULT_GOAL := help
-COMPOSE = docker compose --profile krea2 --profile ideogram --profile ltx --profile minimax
+COMPOSE = docker compose --profile krea2 --profile ideogram --profile ltx --profile minimax --profile anima
 
 help: ## List available targets
 	@grep -E '^[a-z%-]+:.*##' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -16,7 +16,7 @@ build: setup ## Build every image (cached layers reused)
 up: setup ## Start ai-toolkit (training UI) at :8675
 	docker compose up -d ai-toolkit
 
-krea2 ideogram ltx minimax: setup ## Start one ComfyUI app (krea2 :8188, ideogram :8189, ltx :8190, minimax :8191)
+krea2 ideogram ltx minimax anima: setup ## Start one ComfyUI app (krea2 :8188, ideogram :8189, ltx :8190, minimax :8191, anima :8192)
 	docker compose --profile $@ up -d $@
 	@echo "$@ starting — model downloads happen on first start, follow with: make logs-$@"
 
@@ -40,7 +40,7 @@ upgrade-%: setup ## Rebuild one app from a fresh clone (e.g. make upgrade-krea2)
 	CACHEBUST=$$(date +%s) $(COMPOSE) build $*
 
 version: ## Show upstream commits baked into the images
-	@for s in ai-toolkit:/app/ai-toolkit-commit.txt comfyui-krea2:/opt/app/comfyui-commit.txt comfyui-ideogram:/opt/app/comfyui-commit.txt comfyui-ltx:/opt/app/comfyui-commit.txt comfyui-minimax:/opt/app/comfyui-commit.txt; do \
+	@for s in ai-toolkit:/app/ai-toolkit-commit.txt comfyui-krea2:/opt/app/comfyui-commit.txt comfyui-ideogram:/opt/app/comfyui-commit.txt comfyui-ltx:/opt/app/comfyui-commit.txt comfyui-minimax:/opt/app/comfyui-commit.txt comfyui-anima:/opt/app/comfyui-commit.txt; do \
 	  img="$${s%%:*}:local"; f="$${s#*:}"; \
 	  docker image inspect "$$img" >/dev/null 2>&1 && \
 	    echo "$$img  $$(docker run --rm --entrypoint cat $$img $$f)" || true; \
@@ -50,4 +50,4 @@ gpu-check: ## Verify a container sees the GPU and torch has CUDA
 	docker compose run --rm --entrypoint "" ai-toolkit \
 		python -c "import torch; print('torch', torch.__version__, '| cuda available:', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0) if torch.cuda.is_available() else '-')"
 
-.PHONY: help setup build up krea2 ideogram ltx minimax down upgrade version gpu-check
+.PHONY: help setup build up krea2 ideogram ltx minimax anima down upgrade version gpu-check

@@ -1,0 +1,11 @@
+# <folder> <git-url> [git-ref]
+# From ANIMA_BASE_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat
+ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git
+ComfyUI-Impact-Pack https://github.com/ltdrdata/ComfyUI-Impact-Pack
+rgthree-comfy https://github.com/rgthree/rgthree-comfy.git
+ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git
+ComfyUI_UltimateSDUpscale https://github.com/ssitu/ComfyUI_UltimateSDUpscale
+ComfyUI_tinyterraNodes https://github.com/TinyTerra/ComfyUI_tinyterraNodes
+ComfyUI-Impact-Subpack https://github.com/ltdrdata/ComfyUI-Impact-Subpack
+comfyui_controlnet_aux https://github.com/Fannovel16/comfyui_controlnet_aux
+ComfyUI-Anima-LLLite https://github.com/kohya-ss/ComfyUI-Anima-LLLite
