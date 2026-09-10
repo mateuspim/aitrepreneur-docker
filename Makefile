@@ -14,10 +14,10 @@ build: setup ## Build every image (cached layers reused)
 	$(COMPOSE) build
 
 up: setup ## Start ai-toolkit (training UI) at :8675
-	docker compose up -d ai-toolkit
+	docker compose up -d --force-recreate ai-toolkit
 
 krea2 ideogram ltx minimax anima: setup ## Start one ComfyUI app (krea2 :8188, ideogram :8189, ltx :8190, minimax :8191, anima :8192)
-	docker compose --profile $@ up -d $@
+	docker compose --profile $@ up -d --force-recreate $@
 	@echo "$@ starting — model downloads happen on first start, follow with: make logs-$@"
 
 down: ## Stop everything
