@@ -1,0 +1,14 @@
+# <folder> <git-url> [git-ref]
+# From KLEIN_EDIT_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat (FLUX2 KLEIN 9B)
+ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git
+ComfyUI-GGUF https://github.com/city96/ComfyUI-GGUF
+rgthree-comfy https://github.com/rgthree/rgthree-comfy
+ComfyUI-Easy-Use https://github.com/yolain/ComfyUI-Easy-Use
+ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes
+ComfyUI_essentials https://github.com/cubiq/ComfyUI_essentials
+wlsh_nodes https://github.com/wallish77/wlsh_nodes
+comfyui-vrgamedevgirl https://github.com/vrgamegirl19/comfyui-vrgamedevgirl
+RES4LYF https://github.com/ClownsharkBatwing/RES4LYF
+ComfyUI-Detail-Daemon https://github.com/Jonseed/ComfyUI-Detail-Daemon
+comfyui_controlnet_aux https://github.com/Fannovel16/comfyui_controlnet_aux
+ComfyUI_LayerStyle https://github.com/chflame163/ComfyUI_LayerStyle

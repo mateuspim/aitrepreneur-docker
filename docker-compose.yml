@@ -53,6 +53,10 @@ services:
       - "${KREA2_PORT:-8188}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Krea2:/comfyui/models/loras
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/controlnet/Krea2:/comfyui/models/controlnet
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/checkpoints/Krea2:/comfyui/models/checkpoints
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/embeddings/Krea2:/comfyui/models/embeddings
       - ./data/krea2:/data
       - ${AUX_CACHE_DIR:-./data/krea2/cache}:/data/cache
     environment:
@@ -74,6 +78,10 @@ services:
       - "${IDEOGRAM_PORT:-8189}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Ideogram:/comfyui/models/loras
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/controlnet/Ideogram:/comfyui/models/controlnet
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/checkpoints/Ideogram:/comfyui/models/checkpoints
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/embeddings/Ideogram:/comfyui/models/embeddings
       - ./data/ideogram:/data
       - ${AUX_CACHE_DIR:-./data/ideogram/cache}:/data/cache
       # Template reference images for the bundled Ultra workflow (extracted
@@ -98,6 +106,10 @@ services:
       - "${LTX_PORT:-8190}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Ltx:/comfyui/models/loras
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/controlnet/Ltx:/comfyui/models/controlnet
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/checkpoints/Ltx:/comfyui/models/checkpoints
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/embeddings/Ltx:/comfyui/models/embeddings
       - ./data/ltx:/data
       - ${AUX_CACHE_DIR:-./data/ltx/cache}:/data/cache
     environment:
@@ -119,6 +131,10 @@ services:
       - "${MINIMAX_PORT:-8191}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Minimax:/comfyui/models/loras
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/controlnet/Minimax:/comfyui/models/controlnet
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/checkpoints/Minimax:/comfyui/models/checkpoints
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/embeddings/Minimax:/comfyui/models/embeddings
       - ./data/minimax:/data
       - ${AUX_CACHE_DIR:-./data/minimax/cache}:/data/cache
     environment:
@@ -140,8 +156,60 @@ services:
       - "${ANIMA_PORT:-8192}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Anima:/comfyui/models/loras
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/controlnet/Anima:/comfyui/models/controlnet
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/checkpoints/Anima:/comfyui/models/checkpoints
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/embeddings/Anima:/comfyui/models/embeddings
       - ./data/anima:/data
       - ${AUX_CACHE_DIR:-./data/anima/cache}:/data/cache
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       HF_TOKEN: ${HF_TOKEN:-}
+
+  klein:
+    <<: *gpu
+    profiles: [klein]
+    build:
+      context: ./comfyui
+      args:
+        APP: klein
+        COMFY_REF: ${COMFY_REF_KLEIN:-v0.13.0}
+        CACHEBUST: ${CACHEBUST:-0}
+    image: comfyui-klein:local
+    container_name: comfyui-klein
+    ports:
+      - "${KLEIN_PORT:-8193}:8188"
+    volumes:
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
+      # LoRA Manager categorizes FLUX.2 Klein 9B downloads under this folder.
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Flux.2 Klein 9B:/comfyui/models/loras
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/controlnet/Klein:/comfyui/models/controlnet
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/checkpoints/Klein:/comfyui/models/checkpoints
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/embeddings/Klein:/comfyui/models/embeddings
+      - ./data/klein:/data
+      - ${AUX_CACHE_DIR:-./data/klein/cache}:/data/cache
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      HF_TOKEN: ${HF_TOKEN:-}
+
+  # LoRA Manager, standalone edition (no ComfyUI, CPU-only): browses and
+  # organizes the shared model tree, fetches CivitAI previews/metadata and
+  # writes sidecar files in place, so every ComfyUI instance picks them up.
+  # UI lives under /loras (http://localhost:8194/loras).
+  loramgr:
+    restart: unless-stopped
+    profiles: [loramgr]
+    build:
+      context: ./lora-manager
+      args:
+        LORA_MANAGER_REF: ${LORA_MANAGER_REF:-main}
+        CACHEBUST: ${CACHEBUST:-0}
+    image: lora-manager:local
+    container_name: lora-manager
+    ports:
+      - "${LORAMGR_PORT:-8194}:8188"
+    volumes:
+      # Must stay rw: the manager writes .metadata.json sidecars and preview
+      # images next to the model files themselves.
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/models
+      - ./data/loramgr:/data

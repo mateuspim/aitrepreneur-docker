@@ -1,0 +1,28 @@
+# <path relative to models/> <url>
+# From KLEIN_EDIT_ULTRA-MODELS-NODES_INSTALL.bat (FLUX2 KLEIN 9B)
+# HF source: https://huggingface.co/Aitrepreneur/FLX/resolve/main
+# GGUF quant chosen: Q5_K_S (12-16 GB VRAM)
+
+# --- Text Encoders ---
+text_encoders/qwen_3_8b_fp8mixed_abliterated.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/qwen_3_8b_fp8mixed_abliterated.safetensors?download=true
+
+# --- VAE ---
+vae/flux2-vae.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/flux2-vae.safetensors?download=true
+
+# --- LoRAs ---
+loras/KLEIN-DETAILER.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/KLEIN-DETAILER.safetensors?download=true
+loras/uncrop_F2K9B.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/uncrop_F2K9B.safetensors?download=true
+loras/anime2real-semi.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/anime2real-semi.safetensors?download=true
+loras/darkBeastFeb1826Latest_dbkBlitzV15.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/darkBeastFeb1826Latest_dbkBlitzV15.safetensors?download=true
+loras/lenovo_flux_klein9b.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/lenovo_flux_klein9b.safetensors?download=true
+loras/nicegirls_flux_klein9b.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/nicegirls_flux_klein9b.safetensors?download=true
+
+# --- UNets (GGUF) ---
+unet/flux-2-klein-9b-Q5_K_S.gguf https://huggingface.co/Aitrepreneur/FLX/resolve/main/flux-2-klein-9b-Q5_K_S.gguf?download=true
+
+# --- Diffusion Models ---
+diffusion_models/flux-2-klein-9b-fp8.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/flux-2-klein-9b-fp8.safetensors?download=true
+
+# --- Upscalers ---
+upscale_models/4x-ClearRealityV1.pth https://huggingface.co/Aitrepreneur/FLX/resolve/main/4x-ClearRealityV1.pth?download=true
+upscale_models/RealESRGAN_x4plus_anime_6B.pth https://huggingface.co/Aitrepreneur/FLX/resolve/main/RealESRGAN_x4plus_anime_6B.pth?download=true

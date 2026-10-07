@@ -22,9 +22,12 @@ actually used by the build; the rest is optional reference).
 | `ltx` | ComfyUI + LTX-2.3 video generation | `make ltx` | <http://localhost:8190> |
 | `minimax` | ComfyUI + MiniMax H3 video generation | `make minimax` | <http://localhost:8191> |
 | `anima` | ComfyUI + ANIMA 1.0 Ultra Anime | `make anima` | <http://localhost:8192> |
+| `klein` | ComfyUI + FLUX.2 Klein 9B (GGUF editing) | `make klein` | <http://localhost:8193> |
+| `loramgr` | [LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) standalone edition (organize/preview/download loras over the shared model tree; no ComfyUI, CPU-only) | `make loramgr` | <http://localhost:8194/loras> |
 
 Ports are the defaults; override them in `.env` (`AI_TOOLKIT_PORT`,
-`KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`, `MINIMAX_PORT`, `ANIMA_PORT`).
+`KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`, `MINIMAX_PORT`, `ANIMA_PORT`,
+`KLEIN_PORT`).
 
 Each app gets its own container because their Python stacks conflict
 (different torch/transformers pins). They share the models tree under
@@ -59,7 +62,7 @@ missing from the NAS models tree. First start of an app therefore takes a
 while — watch with `make logs-krea2`.
 
 Day to day: `make up` / `make krea2` / `make ideogram` / `make ltx` /
-`make minimax` / `make anima`, `make stop-<app>`, `make logs-<app>`, `make shell-<app>`,
+`make minimax` / `make anima` / `make klein`, `make stop-<app>`, `make logs-<app>`, `make shell-<app>`,
 `make down`.
 
 ## Data layout
@@ -87,8 +90,48 @@ The `ideogram` container also seeds the bundled Ultra workflow into its UI
 (`comfyui/apps/ideogram/workflows/`) and mounts the template images read-only
 at `input/templates`; `minimax` seeds its Ultra and Ultra Turbo workflows the
 same way (`comfyui/apps/minimax/workflows/`); `anima` seeds its ANIMA Base Ultra
-workflow (`comfyui/apps/anima/workflows/`). ai-toolkit mounts the shared models tree read-only at
+workflow (`comfyui/apps/anima/workflows/`); `klein` seeds its Klein Edit Ultra
+workflow (`comfyui/apps/klein/workflows/`). ai-toolkit mounts the shared models tree read-only at
 `/comfyui-models` so training configs can reference existing checkpoints.
+
+The `loramgr` service is different: it has no GPU/torch stack at all (the
+standalone server is plain aiohttp). It mounts the shared models tree
+read-write at `/models` — it must be rw because it writes `.metadata.json`
+sidecars and preview images **next to the model files**, and CivitAI
+downloads land in-place so every ComfyUI app sees them immediately. Its
+`settings.json` (folder paths, CivitAI API key) is created on first run in
+`./data/loramgr/` and can be edited from the UI's Settings page. Config in
+compose: `loramgr`, defaults in [`.env.example`](.env.example)
+(`LORAMGR_PORT`, `LORA_MANAGER_REF`).
+
+## Per-app model isolation
+
+By default every ComfyUI app sees the entire flat `loras/` (and `controlnet/`,
+`checkpoints/`, `embeddings/`) folder — so the Krea2 dropdown is cluttered with
+Anima-only loras. You can reorganise the NAS tree so each app only sees its own
+models plus the big shared categories (diffusion_models, vae, text_encoders,
+etc.).
+
+```bash
+make setup-model-dirs        # dry-run — review what will be moved
+make setup-model-dirs --apply   # actually move files
+```
+
+This creates subfolders on the NAS (`loras/Anima/`, `loras/Krea2/`, …,
+`controlnet/Anima/`, …) and moves existing files by name prefix. Anything that
+doesn't match an app goes into `…/Shared/`. The overlay mounts in
+`docker-compose.yml` then replace `/comfyui/models/loras` with
+`/comfyui/models/loras/Anima` (etc.) per app, so each container sees a clean,
+app-specific library. The LoRA Manager still mounts the full tree read-write,
+so it can manage everything and write sidecars in-place.
+
+If you want a lora to appear in **multiple** apps, hardlink it into each app's
+folder (same filesystem, no extra disk space):
+
+```bash
+cp -l /mnt/gungnir/comfyui/models/loras/Shared/cool-lora.safetensors \
+      /mnt/gungnir/comfyui/models/loras/Krea2/
+```
 
 ## How an app is defined
 
