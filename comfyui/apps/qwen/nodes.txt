@@ -1,0 +1,12 @@
+# <folder> <git-url> [git-ref]
+# From QWEN-IMAGE-EDIT-21_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat (the reference
+# is a Windows portable installer; same node set, cloned unpinned like it does).
+ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git
+rgthree-comfy https://github.com/rgthree/rgthree-comfy.git
+ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git
+ComfyUI-AusBoss https://github.com/ausboss/ComfyUI-AusBoss.git
+comfyui_controlnet_aux https://github.com/Fannovel16/comfyui_controlnet_aux.git
+ComfyUI-PixelDriftFix https://github.com/Mozer/ComfyUI-PixelDriftFix.git
+RES4LYF https://github.com/ClownsharkBatwing/RES4LYF.git
+ComfyUI-Fantastic-MiniMaxH3-PromptBuilder https://github.com/Adudeguyman/ComfyUI-Fantastic-MiniMaxH3-PromptBuilder.git
+ComfyUI_essentials https://github.com/cubiq/ComfyUI_essentials.git

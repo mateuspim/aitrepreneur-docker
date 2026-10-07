@@ -1,9 +1,9 @@
 # Convenience wrapper around docker compose. Run `make help` for a summary.
 # APP targets: ai-toolkit (default profile), krea2, ideogram, ltx, minimax,
-# anima, klein, loramgr (standalone LoRA Manager).
+# anima, klein, qwen, loramgr (standalone LoRA Manager).
 
 .DEFAULT_GOAL := help
-COMPOSE = sudo docker compose --profile krea2 --profile ideogram --profile ltx --profile minimax --profile anima --profile klein --profile loramgr
+COMPOSE = sudo docker compose --profile krea2 --profile ideogram --profile ltx --profile minimax --profile anima --profile klein --profile qwen --profile loramgr
 
 help: ## List available targets
 	@grep -E '^[a-z%-]+:.*##' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -20,7 +20,7 @@ build: setup ## Build every image (cached layers reused)
 up: setup ## Start ai-toolkit (training UI) at :8675
 	sudo docker compose up -d --force-recreate ai-toolkit
 
-krea2 ideogram ltx minimax anima klein: setup ## Start one ComfyUI app (krea2 :8188, ideogram :8189, ltx :8190, minimax :8191, anima :8192, klein :8193)
+krea2 ideogram ltx minimax anima klein qwen: setup ## Start one ComfyUI app (krea2 :8188, ideogram :8189, ltx :8190, minimax :8191, anima :8192, klein :8193, qwen :8195)
 	sudo docker compose --profile $@ up -d --force-recreate $@
 	@lan_ip=$$(ip -4 -o addr show scope global 2>/dev/null | awk '$$2 !~ /^(docker|br-|veth)/ {print $$4}' | cut -d/ -f1 | paste -sd, -); \
 	 port=$$(sudo docker compose --profile $@ port $@ 8188 2>/dev/null | awk -F: '{print $$NF}'); \
@@ -65,7 +65,7 @@ upgrade-%: setup ## Rebuild one app from a fresh clone (e.g. make upgrade-krea2)
 	CACHEBUST=$$(date +%s) $(COMPOSE) build $*
 
 version: ## Show upstream commits baked into the images
-	@for s in ai-toolkit:/app/ai-toolkit-commit.txt comfyui-krea2:/opt/app/comfyui-commit.txt comfyui-ideogram:/opt/app/comfyui-commit.txt comfyui-ltx:/opt/app/comfyui-commit.txt comfyui-minimax:/opt/app/comfyui-commit.txt comfyui-anima:/opt/app/comfyui-commit.txt comfyui-klein:/opt/app/comfyui-commit.txt lora-manager:/opt/lora-manager-commit.txt; do \
+	@for s in ai-toolkit:/app/ai-toolkit-commit.txt comfyui-krea2:/opt/app/comfyui-commit.txt comfyui-ideogram:/opt/app/comfyui-commit.txt comfyui-ltx:/opt/app/comfyui-commit.txt comfyui-minimax:/opt/app/comfyui-commit.txt comfyui-anima:/opt/app/comfyui-commit.txt comfyui-klein:/opt/app/comfyui-commit.txt comfyui-qwen:/opt/app/comfyui-commit.txt lora-manager:/opt/lora-manager-commit.txt; do \
 	  img="$${s%%:*}:local"; f="$${s#*:}"; \
 	  sudo docker image inspect "$$img" >/dev/null 2>&1 && \
 	    echo "$$img  $$(sudo docker run --rm --entrypoint cat $$img $$f)" || true; \
@@ -77,11 +77,11 @@ gpu-check: ## Verify a container sees the GPU and torch has CUDA
 
 delete-input: ## Delete all persisted ComfyUI input files (keeps the input folders)
 	@set -e; \
-	for input_dir in data/krea2/input data/ideogram/input data/ltx/input data/minimax/input data/anima/input data/klein/input; do \
+	for input_dir in data/krea2/input data/ideogram/input data/ltx/input data/minimax/input data/anima/input data/klein/input data/qwen/input; do \
 		if [ -d "$$input_dir" ]; then \
 			echo "Clearing $$input_dir"; \
 			sudo find "$$input_dir" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; \
 		fi; \
 	done
 
-.PHONY: help setup setup-model-dirs build up up-all krea2 ideogram ltx minimax anima klein loramgr down status upgrade version gpu-check delete-input
+.PHONY: help setup setup-model-dirs build up up-all krea2 ideogram ltx minimax anima klein qwen loramgr down status upgrade version gpu-check delete-input

@@ -11,6 +11,7 @@
 #   /mnt/gungnir/comfyui/models/loras/Ltx/
 #   /mnt/gungnir/comfyui/models/loras/Minimax/
 #   /mnt/gungnir/comfyui/models/loras/Flux.2 Klein 9B/   (Klein; LoRA Manager name)
+#   /mnt/gungnir/comfyui/models/loras/Qwen 2.1/          (Qwen; LoRA Manager name)
 #   /mnt/gungnir/comfyui/models/loras/Shared/      ← anything that doesn't match an app
 #
 # The same pattern is used for controlnet, checkpoints, embeddings.
@@ -23,7 +24,7 @@ DRY_RUN=1
 MODELS_DIR="${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}"
 
 # App names must match the subfolder names used in docker-compose.yml overlays.
-APPS=(Anima Krea2 Ideogram Ltx Minimax Klein)
+APPS=(Anima Krea2 Ideogram Ltx Minimax Klein Qwen)
 
 # Per-app filename prefixes (case-insensitive globs, space-separated).
 # Underscore variants are included so "anima_p3..." matches as well as "anima-..."
@@ -34,6 +35,7 @@ declare -A PREFIXES=(
   [Ltx]="ltx- ltx_ LTX- LTX_ Ltx- Ltx_"
   [Minimax]="minimax- minimax_ MINIMAX- MINIMAX_ Minimax- Minimax_"
   [Klein]="klein- klein_ KLEIN- KLEIN_ Klein- Klein_ lenovo_flux_klein nicegirls_flux_klein uncrop_F2K9B KLEIN-DETAILER"
+  [Qwen]="qwen- qwen_ QWEN- QWEN_ Qwen- Qwen_ bfs_head_v1.1_qwen bfs_body_swap_v1.0_qwen lenovo_qwen nicegirls_qwen"
 )
 
 CATEGORIES=(loras controlnet checkpoints embeddings)
@@ -42,6 +44,7 @@ CATEGORIES=(loras controlnet checkpoints embeddings)
 # the app name (must match the loras overlay in docker-compose.yml).
 declare -A LORA_DIRS=(
   [Klein]="Flux.2 Klein 9B"
+  [Qwen]="Qwen 2.1"
 )
 # loras/ subfolders owned by LoRA Manager itself; never touched.
 LORA_KEEP=(recipes)

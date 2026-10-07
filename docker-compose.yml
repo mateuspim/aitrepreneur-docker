@@ -192,6 +192,32 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       HF_TOKEN: ${HF_TOKEN:-}
 
+  qwen:
+    <<: *gpu
+    profiles: [qwen]
+    build:
+      context: ./comfyui
+      args:
+        APP: qwen
+        COMFY_REF: ${COMFY_REF_QWEN:-v0.38.0}
+        CACHEBUST: ${CACHEBUST:-0}
+    image: comfyui-qwen:local
+    container_name: comfyui-qwen
+    ports:
+      - "${QWEN_PORT:-8195}:8188"
+    volumes:
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
+      # LoRA Manager categorizes Qwen Image 2.1 downloads under this folder.
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Qwen 2.1:/comfyui/models/loras
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/controlnet/Qwen:/comfyui/models/controlnet
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/checkpoints/Qwen:/comfyui/models/checkpoints
+      - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/embeddings/Qwen:/comfyui/models/embeddings
+      - ./data/qwen:/data
+      - ${AUX_CACHE_DIR:-./data/qwen/cache}:/data/cache
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      HF_TOKEN: ${HF_TOKEN:-}
+
   # LoRA Manager, standalone edition (no ComfyUI, CPU-only): browses and
   # organizes the shared model tree, fetches CivitAI previews/metadata and
   # writes sidecar files in place, so every ComfyUI instance picks them up.

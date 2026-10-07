@@ -1,0 +1,26 @@
+# <path relative to models/> <url>
+# From QWEN-IMAGE-EDIT-21_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat (Qwen Image Edit 2.1).
+# HF source: https://huggingface.co/Aitrepreneur/FLX/resolve/main
+
+# --- Text Encoder ---
+text_encoders/qwen3vl_8b_int8_convrot.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/qwen3vl_8b_int8_convrot.safetensors?download=true
+
+# --- LoRAs (land in "loras/Qwen 2.1" on the shared tree via the compose overlay) ---
+loras/qwen-image-2.1-outpaint-v2.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/qwen-image-2.1-outpaint-v2.safetensors?download=true
+loras/bfs_head_v1.1_qwen_2.1.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/bfs_head_v1.1_qwen_2.1.safetensors?download=true
+loras/bfs_body_swap_v1.0_qwen_2.1.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/bfs_body_swap_v1.0_qwen_2.1.safetensors?download=true
+loras/Qwen-Image-2.1-Object-Remover-Bbox-turbo-4000.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/Qwen-Image-2.1-Object-Remover-Bbox-turbo-4000.safetensors?download=true
+loras/Qwen-Image-2.1-Object-Mover-Bbox-turbo-4000.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/Qwen-Image-2.1-Object-Mover-Bbox-turbo-4000.safetensors?download=true
+loras/qwen-image-2.1-fix-1.0-comfy.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/qwen-image-2.1-fix-1.0-comfy.safetensors?download=true
+loras/lenovo_qwen21.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/lenovo_qwen21.safetensors?download=true
+loras/nicegirls_qwen12.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/nicegirls_qwen12.safetensors?download=true
+
+# --- VAE ---
+vae/texture_fix_vae_for_qwen_image_2.1_bf16.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/texture_fix_vae_for_qwen_image_2.1_bf16.safetensors?download=true
+
+# --- ControlNet (Fun union, loaded as a model patch) ---
+model_patches/qwen_image_2.1_fun_controlnet_union_int8_convrot.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/qwen_image_2.1_fun_controlnet_union_int8_convrot.safetensors?download=true
+
+# --- Diffusion models (base for ULTRA, viggle 6-step for TURBO) ---
+diffusion_models/qwen_image_2.1_int8_convrot.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/qwen_image_2.1_int8_convrot.safetensors?download=true
+diffusion_models/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-int8_convrot.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-int8_convrot.safetensors?download=true

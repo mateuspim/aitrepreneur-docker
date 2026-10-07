@@ -1,0 +1,28 @@
+# The reference installer (QWEN-IMAGE-EDIT-21_ULTRA-...bat) is a Windows
+# portable build: it adds no pip pins of its own and relies on the stack
+# bundled with ComfyUI v0.38.0. Torch lines are prepended from the Dockerfile
+# ARGs at build time; only the packages the node requirements are known to
+# churn are pinned.
+opencv-python-headless==4.13.0.92
+Pillow>=11.0.0
+numpy>=2.3,<2.6
+
+# Resolver guards. comfyui_controlnet_aux now requires albumentationsx (the
+# maintained fork), which pins a modern albucore; transparent-background
+# >=1.2.13 (via ComfyUI_essentials) pulls the old albumentations, which pins
+# albucore==0.0.24 — an unsatisfiable pair. 1.2.12 is the last release with
+# no albumentations dependency (essentials imports it lazily anyway).
+opencv-python==4.13.0.92
+# mediapipe (controlnet_aux) pulls opencv-contrib-python; keep every cv2
+# provider on the same version so whichever installs last is identical.
+opencv-contrib-python==4.13.0.92
+albumentationsx==2.4.13
+albucore==0.2.20
+transparent-background==1.2.12
+pixeloe==0.1.4
+rembg==2.0.84
+# opencv 4.12 caps numpy<2.3 but rembg/albumentationsx need >=2.3; numba
+# caps numpy<2.6. Pin numba/scikit-image so pip never backtracks into
+# py<3.12-only sdists (numba 0.58 etc.).
+numba==0.67.0
+scikit-image==0.26.0
