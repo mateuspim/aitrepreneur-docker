@@ -87,8 +87,8 @@ never touches data, and nothing big can land in a container's writable layer
 /mnt/gungnir/comfyui/ideogram-templates/  # extracted reference templates
 ```
 
-The `ideogram` container also seeds the bundled Ultra workflow into its UI
-(`comfyui/apps/ideogram/workflows/`) and mounts the template images read-only
+When supplied locally, the `ideogram` container seeds the Ultra workflow into
+its UI (`comfyui/apps/ideogram/workflows/`) and mounts the template images read-only
 at `input/templates`; `minimax` seeds its Ultra and Ultra Turbo workflows the
 same way (`comfyui/apps/minimax/workflows/`); `anima` seeds its ANIMA Base Ultra
 workflow (`comfyui/apps/anima/workflows/`); `klein` seeds its Klein Edit Ultra

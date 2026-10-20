@@ -8,5 +8,6 @@
 # here (see docs/reference/README.md), but only README.md is tracked.
 docs/reference/*
 !docs/reference/README.md
-comfyui/apps/ideogram/workflows/*.json
-comfyui/apps/minimax/workflows/*.json
+
+# Private workflows for every ComfyUI app; keep local for UI seeding.
+comfyui/apps/*/workflows/
