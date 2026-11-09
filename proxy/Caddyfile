@@ -12,7 +12,8 @@
     import auth
     reverse_proxy ai-toolkit:8675
     handle_errors {
-        respond "ai-toolkit is not running — start it with make up or the TUI" {err.status_code}
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "ai-toolkit is not running — start it with make up or the TUI" {err.status_code}
     }
 }
 
@@ -20,7 +21,8 @@
     import auth
     reverse_proxy krea2:8188
     handle_errors {
-        respond "krea2 is not running — start it with make krea2 or the TUI" {err.status_code}
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "krea2 is not running — start it with make krea2 or the TUI" {err.status_code}
     }
 }
 
@@ -28,7 +30,8 @@
     import auth
     reverse_proxy ideogram:8188
     handle_errors {
-        respond "ideogram is not running — start it with make ideogram or the TUI" {err.status_code}
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "ideogram is not running — start it with make ideogram or the TUI" {err.status_code}
     }
 }
 
@@ -36,7 +39,8 @@
     import auth
     reverse_proxy ltx:8188
     handle_errors {
-        respond "ltx is not running — start it with make ltx or the TUI" {err.status_code}
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "ltx is not running — start it with make ltx or the TUI" {err.status_code}
     }
 }
 
@@ -44,7 +48,8 @@
     import auth
     reverse_proxy minimax:8188
     handle_errors {
-        respond "minimax is not running — start it with make minimax or the TUI" {err.status_code}
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "minimax is not running — start it with make minimax or the TUI" {err.status_code}
     }
 }
 
@@ -52,7 +57,8 @@
     import auth
     reverse_proxy anima:8188
     handle_errors {
-        respond "anima is not running — start it with make anima or the TUI" {err.status_code}
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "anima is not running — start it with make anima or the TUI" {err.status_code}
     }
 }
 
@@ -60,7 +66,8 @@
     import auth
     reverse_proxy klein:8188
     handle_errors {
-        respond "klein is not running — start it with make klein or the TUI" {err.status_code}
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "klein is not running — start it with make klein or the TUI" {err.status_code}
     }
 }
 
@@ -68,7 +75,8 @@
     import auth
     reverse_proxy qwen:8188
     handle_errors {
-        respond "qwen is not running — start it with make qwen or the TUI" {err.status_code}
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "qwen is not running — start it with make qwen or the TUI" {err.status_code}
     }
 }
 
@@ -76,6 +84,7 @@
     import auth
     reverse_proxy loramgr:8188
     handle_errors {
-        respond "loramgr is not running — start it with make loramgr or the TUI" {err.status_code}
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "loramgr is not running — start it with make loramgr or the TUI" {err.status_code}
     }
 }

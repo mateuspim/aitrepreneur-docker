@@ -138,7 +138,8 @@ def main():
     import auth
     reverse_proxy {name}:8188
     handle_errors {{
-        respond "{name} is not running — start it with make {name} or the TUI" {{err.status_code}}
+        @unavailable expression `{{err.status_code}} == 502 || {{err.status_code}} == 503`
+        respond @unavailable "{name} is not running — start it with make {name} or the TUI" {{err.status_code}}
     }}
 }}
 
