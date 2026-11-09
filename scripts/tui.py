@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Footer, Header, Input, Label, ListItem, ListView, RichLog, Static
 from rich.text import Text
@@ -163,9 +163,9 @@ def collect():
         state = row.get("State", "stopped").lower()
         image = svc.get("image", "")
         built = (image in images) if not data['error'] and image else None
-        if not error and not row and image and not built and svc.get("build"):
+        if not data["error"] and not row and image and not built and svc.get("build"):
             state = "not built"
-        if error:
+        if data["error"]:
             state = "unknown"
         logs = []
         if state == "running":
@@ -179,7 +179,7 @@ def collect():
         missing = [r[0] for r in models if r[0] not in present]
         port = port_for(name, svc, services, env)
         suffix = "/loras" if name == "loramgr" else ""
-        urls = [f"http://{host}:{port}{suffix}" for host in ["localhost", *lan, *ts, *([dns] if dns else [])] if port != "?"]
+        urls = [f"http://{host}:{port}{suffix}" for host in ["localhost", *lan, *ts, *([dns] if dns else [])] if port != "?" and name != "proxy"]
         data["services"][name] = {"state": state, "port": port, "urls": urls, "gpu": svc.get("runtime") == "nvidia" or bool(svc.get("gpus")), "profiles": svc.get("profiles", []), "image": image, "built": built, "ref": env.get("COMFY_REF_" + name.upper().replace("-", "_"), ""), "app": path.is_dir(), "workflows": [p.name for p in sorted((path / "workflows").glob("*")) if p.is_file()], "models_present": present, "models_missing": missing, "nodes": len(manifest(path / "nodes.txt")), "downloads": logs}
     if "proxy" in data["services"]:
         data["proxy"] = f"{data['services']['proxy']['state']} (basic auth configured; not independently verified)"
@@ -266,11 +266,25 @@ class Output(ModalScreen):
 
 
 class Dashboard(App):
+    TITLE = "AITREPRENEUR"
+    SUB_TITLE = "Service dashboard"
     CSS = """
-    #summary { height: auto; max-height: 6; padding: 0 1; }
-    #body { height: 1fr; }
-    #services { width: 33%; border: solid $primary; }
-    #detail { width: 67%; border: solid $primary; padding: 1; overflow-y: auto; }
+    Screen { background: #0c111b; color: #dbe5f3; }
+    Header { background: #111a2a; color: #e6eef9; }
+    Footer { background: #111a2a; }
+    #overview { height: 6; padding: 0 1; }
+    .card { width: 1fr; height: 6; background: #152131; border: round #33475e; padding: 0 1; }
+    #status-card, #network-card { margin-left: 1; }
+    #notice { height: auto; max-height: 2; padding: 0 2; color: #f5bd75; }
+    #body { height: 1fr; padding: 0 1; }
+    #sidebar { width: 34%; min-width: 25; height: 1fr; border: round #33475e; background: #111b29; }
+    #list-title { height: 2; padding: 0 1; color: #8da6c4; text-style: bold; }
+    #services { height: 1fr; background: #111b29; }
+    #services > ListItem { height: 3; padding: 0 1; }
+    #services > ListItem.--highlight { background: #263b53; }
+    #services:focus > ListItem.--highlight { background: #29455f; }
+    #detail { width: 1fr; height: 1fr; margin-left: 1; border: round #33475e; background: #111b29; padding: 1 2; overflow-y: auto; }
+    #detail-content { width: 1fr; height: auto; }
     #dialog { width: 70%; height: auto; max-height: 70%; padding: 1 2; border: thick $accent; background: $surface; align: center middle; }
     Confirm, PasswordPrompt { align: center middle; background: $background 70%; }
     Confirm Horizontal { height: 3; align: center middle; }
@@ -285,13 +299,21 @@ class Dashboard(App):
         self.data = {"services": {}}
         self.selected = None
         self.refreshing = False
+        self.rendered_detail = None
 
     def compose(self) -> ComposeResult:
         yield Header()
-        yield Static("Loading…", id="summary")
+        with Horizontal(id="overview"):
+            yield Static("Loading GPU…", id="gpu-card", classes="card")
+            yield Static("Loading services…", id="status-card", classes="card")
+            yield Static("Loading network…", id="network-card", classes="card")
+        yield Static("", id="notice")
         with Horizontal(id="body"):
-            yield ListView(id="services")
-            yield Static("Select a service", id="detail")
+            with Vertical(id="sidebar"):
+                yield Static("SERVICES  ·  ↑↓ to select", id="list-title")
+                yield ListView(id="services")
+            with VerticalScroll(id="detail"):
+                yield Static("Select a service", id="detail-content")
         yield Footer()
 
     def on_mount(self):
@@ -319,21 +341,73 @@ class Dashboard(App):
                 self.refreshing = False
         self.run_worker(refresh())
 
+    @staticmethod
+    def state_style(state):
+        return {"running": "#65d9a3", "downloading models": "#79c9ff", "restarting": "#f5bd75", "not built": "#f5bd75", "stopped": "#8da2b9", "exited": "#8da2b9", "unknown": "#f5bd75"}.get(state, "#f08b8b")
+
     def render_state(self):
         d = self.data
-        summary = f"Project: {ROOT} | {d['gpu']}\nLAN: {', '.join(d['lan']) or 'unavailable'} | Tailscale: {', '.join(d['tailscale']) or 'unavailable'} | MagicDNS: {d['magicdns'] or 'unavailable'}\nProxy: {d['proxy']}"
+        gpu = Text("GPU  /  LIVE\n", style="bold #87a9ca")
+        gpu.append(d['gpu'], style="#e6eef9")
+        self.query_one("#gpu-card", Static).update(gpu)
+
+        services = d['services']
+        running = sum(item['state'] in ('running', 'downloading models') for item in services.values())
+        downloading = sum(item['state'] == 'downloading models' for item in services.values())
+        unknown = sum(item['state'] == 'unknown' for item in services.values())
+        status = Text("STACK  /  SERVICES\n", style="bold #87a9ca")
+        if unknown:
+            status.append(f"{unknown} unknown", style="bold #f5bd75")
+            status.append(f"  ·  {len(services)} total")
+        else:
+            status.append(f"{running} running", style="bold #65d9a3")
+            status.append(f"  ·  {len(services) - running} other")
+        if downloading:
+            status.append(f"\n{downloading} downloading", style="#79c9ff")
+        proxy = services.get('proxy')
+        if proxy:
+            status.append("\nProxy: ")
+            status.append(proxy['state'], style=self.state_style(proxy['state']))
+            status.append(" · auth configured", style="#8da6c4")
+        self.query_one("#status-card", Static).update(status)
+
+        network = Text("NETWORK  /  ACCESS\n", style="bold #87a9ca")
+        network.append("LAN  ", style="#8da6c4")
+        network.append(", ".join(d['lan']) or "unavailable")
+        network.append("\nTAIL  ", style="#8da6c4")
+        network.append(", ".join(d['tailscale']) or "unavailable")
+        if d['magicdns']:
+            network.append("\n" + d['magicdns'], style="#8da6c4")
+        self.query_one("#network-card", Static).update(network)
+        notice = Text("PROJECT  ", style="bold #8da6c4")
+        notice.append(str(ROOT), style="#8da6c4")
         if d['error']:
-            summary += "\n" + d['error']
-        self.query_one("#summary", Static).update(Text(summary))
+            notice.append("\n" + d['error'], style="bold #f5bd75")
+        self.query_one("#notice", Static).update(notice)
         view = self.query_one(ListView)
-        names = list(d["services"])
+        names = list(services)
         if self.selected not in names:
             self.selected = names[0] if names else None
-        view.clear()
-        for name, item in d["services"].items():
-            view.append(ListItem(Label(Text(f"{name}  {item['state']}  :{item['port']}")), name=name))
+        existing = {item.name: item for item in view.children if isinstance(item, ListItem)}
+        # Keep the widgets (and their highlight) across normal refreshes.
+        # Rebuild only when the Compose service set actually changes.
+        rebuild = list(existing) != names
+        if rebuild:
+            view.clear()
+        for name, item in services.items():
+            label = Text()
+            label.append("● ", style=self.state_style(item['state']))
+            label.append(name, style="bold #e6eef9")
+            label.append("\n  " + item['state'].upper(), style=self.state_style(item['state']))
+            if name != 'proxy' and item['port'] != '?':
+                label.append("  ·  :" + item['port'], style="#8da6c4")
+            if rebuild:
+                view.append(ListItem(Label(label), name=name))
+            else:
+                existing[name].query_one(Label).update(label)
         if self.selected:
-            view.index = names.index(self.selected)
+            if rebuild:
+                view.index = names.index(self.selected)
             self.show_detail()
 
     def on_list_view_highlighted(self, event):
@@ -342,16 +416,58 @@ class Dashboard(App):
             self.show_detail()
 
     def show_detail(self):
-        item = self.data["services"].get(self.selected)
+        item = self.data['services'].get(self.selected)
         if not item:
             return
-        built = "unknown" if item['built'] is None else ("yes" if item['built'] else "no")
-        lines = [self.selected, f"State: {item['state']}", f"Image: {item['image'] or 'unspecified'} (built: {built})", "URLs:", *["  " + u for u in item['urls']]]
+        text = Text()
+        def section(title):
+            text.append("\n" + title.upper() + "\n", style="bold #87a9ca")
+        def line(label, value, style="#dbe5f3"):
+            text.append(label + "  ", style="#8da6c4")
+            text.append(str(value) + "\n", style=style)
+        text.append(self.selected.upper() + "\n", style="bold #eaf3ff")
+        text.append("● " + item['state'].upper() + "\n", style="bold " + self.state_style(item['state']))
+        section("Access")
+        if item['urls']:
+            for label, url in zip(['LOCAL', *(['LAN'] * len(self.data['lan'])), *(['TAILSCALE'] * len(self.data['tailscale'])), *(['MAGICDNS'] if self.data['magicdns'] else [])], item['urls']):
+                line(label, url, "#8ed0ff")
+            if 'proxy' in self.data['services']:
+                line("LOGIN", "Proxy authentication required")
+        else:
+            text.append("No app URL for this service\n", style="#8da6c4")
+        section("Image")
+        built = "unknown" if item['built'] is None else ("available" if item['built'] else "not built")
+        line("IMAGE", item['image'] or 'unspecified')
+        line("BUILD", built)
         if item['app']:
-            lines += [f"ComfyUI ref: {item['ref'] or 'default'}", "Workflows: " + (", ".join(item['workflows']) or "none"), f"Models: {len(item['models_present'])} present, {len(item['models_missing'])} missing", *["  present: " + p for p in item['models_present']], *["  missing: " + p for p in item['models_missing']], f"Custom nodes: {item['nodes']}"]
+            line("COMFYUI REF", item['ref'] or 'default')
+            section("App resources")
+            present, missing = item['models_present'], item['models_missing']
+            line("MODELS", f"{len(present)} present  ·  {len(missing)} missing", "#f5bd75" if missing else "#65d9a3")
+            line("NODES", item['nodes'])
+            line("WORKFLOWS", len(item['workflows']))
+            for workflow in item['workflows']:
+                text.append("  " + workflow + "\n", style="#dbe5f3")
+            if missing:
+                section("Missing models")
+                for model in missing:
+                    text.append("  ○ " + model + "\n", style="#f5bd75")
+            if present:
+                section("Available models")
+                for model in present:
+                    text.append("  ✓ " + model + "\n", style="#9db8a9")
         if item['downloads']:
-            lines += ["Recent downloads:", *item['downloads']]
-        self.query_one("#detail", Static).update(Text("\n".join(lines)))
+            section("Recent downloads")
+            for log in item['downloads']:
+                text.append(log + "\n", style="#79c9ff")
+        detail = self.query_one("#detail", VerticalScroll)
+        signature = (self.selected, text.plain, tuple(text.spans))
+        if signature != self.rendered_detail:
+            same_service = self.rendered_detail is not None and self.rendered_detail[0] == self.selected
+            scroll_y = detail.scroll_y if same_service else 0
+            self.query_one("#detail-content", Static).update(text)
+            self.call_after_refresh(detail.scroll_to, y=scroll_y, animate=False, force=True)
+            self.rendered_detail = signature
 
     def command(self, *args):
         return DOCKER + ["compose", "--profile", "*", *args]
