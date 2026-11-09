@@ -23,6 +23,7 @@ services:
       AUTH_HASH: ${AUTH_HASH:?Run make auth-password first}
     ports:
       - "${AI_TOOLKIT_PORT:-8675}:8675"
+      - "${KREA2_PORT:-8188}:8188"
       - "${IDEOGRAM_PORT:-8189}:8189"
       - "${LTX_PORT:-8190}:8190"
       - "${MINIMAX_PORT:-8191}:8191"
@@ -66,8 +67,6 @@ services:
         CACHEBUST: ${CACHEBUST:-0}
     image: comfyui-krea2:local
     container_name: comfyui-krea2
-    ports:
-      - "${KREA2_PORT:-8188}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Krea2:/comfyui/models/loras
