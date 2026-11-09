@@ -3,364 +3,358 @@
 add-app-from-bat.py — Generate aitrepreneur-docker app config from a .bat file.
 
 Usage:
-    python scripts/add-app-from-bat.py <app-name> <path-to-bat-file> [options]
+    python scripts/add-app-from-bat.py <app-name> <path-to-bat> [--dry-run] [--force]
+                                       [--comfy-ver vX.Y.Z] [--choose VAR=value ...]
 
-Example:
-    python scripts/add-app-from-bat.py anima /path/to/ANIMA_BASE_ULTRA-MODELS-NODES_INSTALL.bat
+Parses Aitrepreneur-style Windows .bat installers and writes:
+    comfyui/apps/<name>/nodes.txt        custom nodes (call :clone / git clone)
+    comfyui/apps/<name>/models.txt       model files (call :grab / curl -o)
+    comfyui/apps/<name>/constraints.txt  proven pip baseline (tune per app)
+    comfyui/apps/<name>/extras.txt       pip packages the .bat installs by name
+    comfyui/apps/<name>/workflows/       empty; copy the workflow JSONs here
 
-This parses Aitrepreneur-style Windows .bat installers and generates:
-    - comfyui/apps/<name>/nodes.txt
-    - comfyui/apps/<name>/models.txt
-    - comfyui/apps/<name>/constraints.txt
-    - comfyui/apps/<name>/extras.txt
+How the .bat is read:
+    - `^` line continuations are joined.
+    - `set "VAR=value"` / `set VAR=value` define variables; %VAR% and !VAR!
+      are expanded. A variable set to several different values (e.g. a GGUF
+      quant menu) is reported as a CHOICE; pass --choose VAR=value to pick one.
+    - Model paths are taken as written in the .bat (relative to ComfyUI's
+      models/ folder), never guessed from the filename.
+    - Anything that cannot be parsed confidently is printed as a WARNING.
 
-You still need to manually:
-    1. Add the service to docker-compose.yml
-    2. Add Makefile targets
-    3. Add ports to .env and .env.example
-    4. Add workflows to comfyui/apps/<name>/workflows/
-    5. Commit and build
+Then run scripts/check-app.py and scripts/wire-app.py (see the install-bat
+skill in .claude/skills/install-bat/SKILL.md for the full flow).
 """
 
 import argparse
 import re
-import os
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
+# Model folders ComfyUI knows about (used to sanity-check .bat paths).
+KNOWN_MODEL_DIRS = {
+    "checkpoints", "clip", "clip_vision", "controlnet", "diffusers",
+    "diffusion_models", "embeddings", "gligen", "hypernetworks", "inpaint",
+    "ipadapter", "latent_upscale_models", "loras", "model_patches",
+    "photomaker", "sams", "style_models", "text_encoders", "unet",
+    "upscale_models", "vae", "vae_approx", "ultralytics", "sam2", "sam3",
+    "LLM", "audio_encoders", "onnx", "insightface", "facerestore_models",
+    "grounding-dino", "mmdets", "depthanything", "yolo",
+}
 
-def parse_git_clones(content):
-    """Extract git clone URLs from .bat content."""
-    nodes = []
-    # Pattern: git clone <url> [folder]
-    for match in re.finditer(r'git\s+clone\s+(\S+)(?:\s+(\S+))?', content, re.IGNORECASE):
-        url = match.group(1).strip('"')
-        folder = match.group(2)
-        if folder:
-            folder = folder.strip('"').strip('%').strip()
-        else:
-            # Extract folder from URL
-            folder = Path(urlparse(url).path).stem
-        nodes.append((folder, url))
+# Packages never taken from the .bat's pip lines: the image locks them.
+LOCKED_PACKAGES = (
+    "torch", "torchvision", "torchaudio", "xformers", "triton",
+    "sageattention", "numpy", "nvidia-", "cuda-",
+)
+
+
+# ───────────────────────── .bat reading ─────────────────────────
+
+def read_lines(text):
+    """Join ^ continuations; return (lineno, line) pairs without comments."""
+    out, buf, start = [], "", 0
+    for i, raw in enumerate(text.splitlines(), 1):
+        line = raw.rstrip()
+        if not buf:
+            start = i
+        if line.endswith("^"):
+            buf += line[:-1].rstrip() + " "
+            continue
+        buf += line.strip() if buf else line.strip()
+        if buf and not re.match(r"^(rem\b|::)", buf, re.IGNORECASE):
+            out.append((start, buf))
+        buf = ""
+    return out
+
+
+SET_RE = re.compile(r'^set\s+(?!/[pa]\b)"?([A-Za-z_][\w]*)=([^"]*)"?\s*$', re.IGNORECASE)
+
+
+def collect_vars(lines):
+    """Map VAR -> list of distinct values in order of appearance."""
+    values = {}
+    for _, line in lines:
+        # `if ... set "X=..."` and `(set X=...)` forms count too
+        for m in re.finditer(r'\bset\s+(?!/[pa]\b)"?([A-Za-z_]\w*)=([^"&)]*)"?', line, re.IGNORECASE):
+            name, val = m.group(1).upper(), m.group(2).strip()
+            values.setdefault(name, [])
+            if val not in values[name]:
+                values[name].append(val)
+    return values
+
+
+def make_expander(values, chosen):
+    def resolve(name):
+        name = name.upper()
+        if name in chosen:
+            return chosen[name]
+        vals = values.get(name)
+        return vals[0] if vals else None
+
+    def expand(s, depth=0):
+        def sub(m):
+            v = resolve(m.group(1))
+            return m.group(0) if v is None else v
+        new = re.sub(r"[%!]([A-Za-z_]\w*)[%!]", sub, s)
+        return expand(new, depth + 1) if new != s and depth < 5 else new
+    return expand
+
+
+def unquote(s):
+    return s.strip().strip('"').strip()
+
+
+# ───────────────────────── parsing ─────────────────────────
+
+def parse_nodes(lines, expand, warnings):
+    nodes, by_folder = [], {}
+    clone_re = re.compile(
+        r'(?:call\s+:clone|git\s+clone)\s+((?:-{1,2}[\w-]+(?:[ =]\S+)?\s+)*)("?[^\s"]+"?)(?:\s+("?[^\s"&>]+"?))?',
+        re.IGNORECASE)
+    for lineno, line in lines:
+        for m in clone_re.finditer(line):
+            url = unquote(expand(m.group(2)))
+            if "%" in url or not url.lower().startswith(("http", "git@")):
+                continue  # the :clone helper body (git clone %*) and similar
+            folder = m.group(3)
+            folder = unquote(expand(folder)) if folder else ""
+            if not folder or folder.startswith((">", "2>")) or "%" in folder:
+                folder = Path(urlparse(url).path).name
+            folder = re.sub(r"\.git$", "", folder.replace("\\", "/").rstrip("/").split("/")[-1])
+            ref = None
+            bm = re.search(r"(?:-b|--branch)[ =](\S+)", m.group(1) or "")
+            if bm:
+                ref = unquote(bm.group(1))
+            if folder in by_folder:
+                continue
+            entry = [folder, url, ref]
+            by_folder[folder] = entry
+            nodes.append(entry)
+
+    # Pinned commits: `git -C <folder> checkout <ref>` or `cd <folder> && git checkout <ref>`
+    for lineno, line in lines:
+        m = re.search(r'git\s+-C\s+("?[^"\s]+"?)\s+checkout\s+(\S+)', line, re.IGNORECASE)
+        if m:
+            folder = unquote(expand(m.group(1))).replace("\\", "/").rstrip("/").split("/")[-1]
+            if folder in by_folder:
+                by_folder[folder][2] = unquote(m.group(2))
+            else:
+                warnings.append(f"line {lineno}: checkout for unknown node folder '{folder}': {line}")
+        elif re.search(r"\bgit\s+checkout\s+\S+", line, re.IGNORECASE):
+            warnings.append(f"line {lineno}: git checkout without -C, pin it by hand in nodes.txt: {line}")
     return nodes
 
 
-def parse_model_downloads(content):
-    """Extract curl model downloads from .bat content."""
-    models = []
-    # Pattern: call :grab <path> <url>
-    for match in re.finditer(
-        r'call\s+:grab\s+([^\^\n]+?)\s+\^?\s*\n?\s*"([^"]+)"',
-        content, re.IGNORECASE | re.MULTILINE
-    ):
-        path = match.group(1).strip().strip('"').strip('%').strip()
-        url = match.group(2).strip()
-        # Clean up path (remove HF var references, etc.)
-        path = re.sub(r'%\w+%[/\\]', '', path)
-        path = path.strip('\\/')
-        if path and url:
-            models.append((path, url))
-
-    # Also try simpler pattern: call :grab "path" "url"
-    for match in re.finditer(
-        r'call\s+:grab\s+"([^"]+)"\s+"([^"]+)"',
-        content, re.IGNORECASE
-    ):
-        path = match.group(1).strip()
-        url = match.group(2).strip()
-        models.append((path, url))
-
-    # Pattern with ^ continuation lines
-    for match in re.finditer(
-        r'call\s+:grab\s+([^\n]+?)\^\s*\n\s*"([^"]+)"',
-        content, re.IGNORECASE | re.MULTILINE
-    ):
-        path = match.group(1).strip().strip('"').strip('%').strip()
-        url = match.group(2).strip()
-        path = re.sub(r'%\w+%[/\\]', '', path)
-        path = path.strip('\\/')
-        if path and url:
-            models.append((path, url))
-
-    # Deduplicate while preserving order
-    seen = set()
-    unique = []
-    for path, url in models:
-        key = (path.lower(), url.lower())
-        if key not in seen:
-            seen.add(key)
-            unique.append((path, url))
-    return unique
+def normalize_model_path(path, warnings, lineno):
+    p = unquote(path).replace("\\", "/")
+    p = re.sub(r"^\./", "", p)
+    # Strip a leading ".../models/" (whole segment only: not "diffusion_models/")
+    m = list(re.finditer(r"(?:^|/)models/", p, re.IGNORECASE))
+    if m:
+        p = p[m[-1].end():]
+    p = p.strip("/")
+    top = p.split("/")[0] if "/" in p else ""
+    if not top:
+        warnings.append(f"line {lineno}: model '{p}' has no folder; decide where it goes")
+    elif top not in KNOWN_MODEL_DIRS:
+        warnings.append(f"line {lineno}: unusual model folder '{top}/' for {p}; confirm a node expects it")
+    return p
 
 
-def parse_comfy_version(content):
-    """Extract ComfyUI version pin from .bat content."""
-    # Pattern: set "COMFY_VER=v0.21.1"
-    match = re.search(r'COMFY_VER\s*=\s*"?([^"\s]+)"?', content, re.IGNORECASE)
-    if match:
-        return match.group(1)
-    # Pattern: ComfyUI v0.33.1
-    match = re.search(r'ComfyUI\s+(v[\d.]+)', content, re.IGNORECASE)
-    if match:
-        return match.group(1)
-    return "master"  # default
+def parse_models(lines, expand, warnings):
+    models, seen = [], set()
+    grab_re = re.compile(r'call\s+:(?:grab|download|dl)\w*\s+("[^"]+"|\S+)\s+("[^"]+"|\S+)', re.IGNORECASE)
+    curl_re = re.compile(r'\bcurl\b.*?\s-o\s+("[^"]+"|\S+)\s+("[^"]+"|\S+)', re.IGNORECASE)
+    for lineno, line in lines:
+        m = grab_re.search(line) or curl_re.search(line)
+        if not m:
+            continue
+        path, url = unquote(expand(m.group(1))), unquote(expand(m.group(2)))
+        if "%~" in path or "%~" in url or "%1" in path:
+            continue  # helper routine body
+        if not url.lower().startswith("http"):
+            continue
+        if url.lower().endswith((".7z", ".zip", ".exe", ".msi")) or "github.com/comfyanonymous" in url:
+            continue  # ComfyUI portable / tool downloads
+        if "%" in url or "!" in url:
+            warnings.append(f"line {lineno}: unexpanded variable in URL: {url}")
+        rel = normalize_model_path(path, warnings, lineno)
+        if "huggingface.co" in url and "/resolve/" in url and "download=" not in url:
+            url += ("&" if "?" in url else "?") + "download=true"
+        key = rel.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        models.append((rel, url))
+    return models
 
 
-def parse_hf_base_url(content):
-    """Extract HF base URL from .bat content."""
-    match = re.search(r'set\s+"HF\s*=\s*([^"]+)"', content, re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    match = re.search(r'set\s+HF\s*=\s*([^\s]+)', content, re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
+def parse_pip(lines, expand):
+    """Packages the .bat pip-installs by name (not -r requirements files)."""
+    pkgs = []
+    for _, line in lines:
+        m = re.search(r"pip(?:\.exe)?\"?\s+install\s+(.+)$", expand(line), re.IGNORECASE)
+        if not m or re.search(r"(^|\s)-r\s", m.group(1)):
+            continue
+        for tok in m.group(1).split():
+            tok = unquote(tok)
+            if not tok or tok.startswith("-") or tok.startswith(("http", ".", "/")) or "%" in tok:
+                continue
+            if tok.lower().startswith(LOCKED_PACKAGES) or tok.lower() == "pip":
+                continue
+            if tok not in pkgs:
+                pkgs.append(tok)
+    return pkgs
+
+
+def parse_comfy_version(text, expand):
+    m = re.search(r'COMFY_VER\s*=\s*"?([^"\s]+)', text, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    m = re.search(r"ComfyUI/releases/download/(v[\d.]+)/", expand(text))
+    if m:
+        return m.group(1)
     return None
 
 
-def guess_model_category(path):
-    """Map a model path to the correct ComfyUI models/ subdirectory."""
-    path_lower = path.lower()
-    if 'upscale' in path_lower or 'esrgan' in path_lower or 'remacri' in path_lower:
-        return 'upscale_models'
-    if 'controlnet' in path_lower or 'lllite' in path_lower or 'canny' in path_lower or 'depth' in path_lower or 'pose' in path_lower or 'lineart' in path_lower or 'inpaint' in path_lower:
-        return 'controlnet'
-    if 'lora' in path_lower:
-        return 'loras'
-    if any(x in path_lower for x in ['diffusion', 'checkpoint', 'unet', 'model']):
-        return 'diffusion_models'
-    if 'vae' in path_lower:
-        return 'vae'
-    if 'text_encoder' in path_lower or 'clip' in path_lower or 't5' in path_lower or 'qwen' in path_lower:
-        return 'text_encoders'
-    if 'sam' in path_lower:
-        return 'sams'
-    if 'ultralytics' in path_lower or 'yolo' in path_lower or 'bbox' in path_lower or 'segm' in path_lower:
-        # Keep the ultralytics/bbox or ultralytics/segm structure
-        if 'bbox' in path_lower:
-            return 'ultralytics/bbox'
-        if 'segm' in path_lower:
-            return 'ultralytics/segm'
-        return 'ultralytics/bbox'
-    if 'inpaint' in path_lower:
-        return 'inpaint'
-    if 'ipadapter' in path_lower:
-        return 'ipadapter'
-    if 'embed' in path_lower:
-        return 'embeddings'
-    return 'diffusion_models'  # fallback
+# ───────────────────────── output ─────────────────────────
+
+def nodes_txt(nodes, bat_name):
+    lines = ["# <folder> <git-url> [git-ref]",
+             f"# From {bat_name} (cloned unpinned like the installer unless a ref is given)."]
+    lines += [" ".join(x for x in (folder, url, ref) if x) for folder, url, ref in nodes]
+    return "\n".join(lines) + "\n"
 
 
-def normalize_model_path(path, hf_base=None):
-    """Convert Windows-style paths and HF URLs to ComfyUI model paths."""
-    # Remove HF variable references
-    path = re.sub(r'%HF%[/\\]', '', path)
-    path = re.sub(r'%YOLO11%[/\\]', '', path)
-    path = path.strip('\\/').replace('\\', '/')
-
-    # If path already has a models/ prefix, use relative part
-    if 'models/' in path.lower():
-        parts = path.lower().split('models/')
-        if len(parts) > 1:
-            return 'models/' + path.split('models/')[1]
-
-    # Otherwise, guess the category from filename
-    basename = os.path.basename(path)
-    category = guess_model_category(basename)
-    return f"{category}/{basename}"
+def models_txt(models, bat_name, chosen):
+    lines = ["# <path relative to models/> <url>", f"# From {bat_name}."]
+    for k, v in chosen.items():
+        lines.append(f"# Choice: {k}={v}")
+    lines.append("")
+    current = None
+    for rel, url in models:
+        top = rel.split("/")[0]
+        if top != current:
+            if current is not None:
+                lines.append("")
+            lines.append(f"# --- {top} ---")
+            current = top
+        lines.append(f"{rel} {url}")
+    return "\n".join(lines) + "\n"
 
 
-def generate_nodes_txt(nodes):
-    """Generate nodes.txt content."""
-    lines = ["# <folder> <git-url> [git-ref]", ""]
-    for folder, url in nodes:
-        lines.append(f"{folder} {url}")
-    return '\n'.join(lines) + '\n'
+def constraints_txt(bat_name, comfy_ver):
+    # Baseline proven on the qwen app (ComfyUI v0.38, py3.12, torch 2.8).
+    return f"""\
+# Pip constraints for every install step. Torch lines are prepended from the
+# Dockerfile ARGs at build time. Reference installer: {bat_name}
+# (ComfyUI {comfy_ver}). Windows portable installers add no pins of their
+# own; this is the project baseline — tune it if the build fails to resolve.
+Pillow>=11.0.0
+# rembg/albumentationsx need numpy>=2.3; numba caps it below 2.6.
+numpy>=2.3,<2.6
+
+# Every cv2 provider on the same version (whichever installs last wins).
+# opencv 4.12 caps numpy<2.3, so stay on 4.13+.
+opencv-python-headless==4.13.0.92
+opencv-python==4.13.0.92
+opencv-contrib-python==4.13.0.92
+
+# Resolver guards: without these pip backtracks into py<3.12-only sdists
+# (numba 0.58) or into the old albumentations/albucore pair.
+numba==0.67.0
+scikit-image==0.26.0
+albumentationsx==2.4.13
+albucore==0.2.20
+# ComfyUI_essentials: 1.2.12 is the last release without the old
+# albumentations dependency (conflicts with albumentationsx).
+transparent-background==1.2.12
+pixeloe==0.1.4
+rembg==2.0.84
+"""
 
 
-def generate_models_txt(models, hf_base=None):
-    """Generate models.txt content."""
-    lines = ["# <path relative to models/> <url>", ""]
-    if hf_base:
-        lines.append(f"# HF source: {hf_base}")
-        lines.append("")
-
-    for path, url in models:
-        rel_path = normalize_model_path(path, hf_base)
-        # Make sure URL has ?download=true if it's a huggingface raw file
-        if 'huggingface.co' in url and 'download=true' not in url and 'resolve' in url:
-            if '?' not in url:
-                url += '?download=true'
-            elif 'download=' not in url:
-                url += '&download=true'
-        lines.append(f"{rel_path} {url}")
-    return '\n'.join(lines) + '\n'
-
-
-def generate_constraints_txt(comfy_ver="master"):
-    """Generate a starter constraints.txt."""
-    lines = [
-        f"# Pins from reference installer (torch lines are prepended from",
-        f"# the Dockerfile ARGs at build time). ComfyUI pinned to {comfy_ver}.",
-        "transformers==4.51.3",
-        "tokenizers>=0.21,<0.22",
-        "timm==1.0.15",
-        "opencv-python-headless==4.12.0.88",
-        "Pillow>=11.0.0",
-        "numpy>=1.26,<3",
-        "",
-    ]
-    return '\n'.join(lines)
-
-
-def generate_extras_txt():
-    """Generate a starter extras.txt."""
-    lines = [
-        "# App-specific extra packages (workflow dependencies).",
-        "# Add whatever the nodes/workflows need beyond what's in requirements.txt.",
-        "# Common ones for ComfyUI apps:",
-        "# transformers==4.51.3",
-        "# timm==1.0.15",
-        "# opencv-python-headless==4.12.0.88",
-        "# safetensors>=0.4.3",
-        "# huggingface_hub>=0.25.2,<1.0",
-        "# accelerate>=0.34.0",
-        "# ultralytics",
-        "# diffusers",
-        "# einops",
-        "# piexif",
-        "# librosa",
-        "",
-    ]
-    return '\n'.join(lines)
-
-
-def create_app_directory(app_name, nodes, models, comfy_ver, hf_base, dry_run=False):
-    """Create the app directory structure."""
-    app_dir = Path(f"comfyui/apps/{app_name}")
-    workflows_dir = app_dir / "workflows"
-
-    if dry_run:
-        print(f"[DRY RUN] Would create: {app_dir}/")
-        print(f"[DRY RUN] Would create: {workflows_dir}/")
-    else:
-        app_dir.mkdir(parents=True, exist_ok=True)
-        workflows_dir.mkdir(parents=True, exist_ok=True)
-        print(f"Created: {app_dir}/")
-        print(f"Created: {workflows_dir}/")
-
-    files = {
-        "nodes.txt": generate_nodes_txt(nodes),
-        "models.txt": generate_models_txt(models, hf_base),
-        "constraints.txt": generate_constraints_txt(comfy_ver),
-        "extras.txt": generate_extras_txt(),
-    }
-
-    for filename, content in files.items():
-        filepath = app_dir / filename
-        if dry_run:
-            print(f"[DRY RUN] Would write: {filepath}")
-            print(content)
-            print("-" * 40)
-        else:
-            filepath.write_text(content)
-            print(f"Wrote: {filepath}")
-
-
-def print_next_steps(app_name, comfy_ver):
-    """Print what the user still needs to do manually."""
-    print("\n" + "=" * 60)
-    print("NEXT STEPS — Complete these manually:")
-    print("=" * 60)
-    print(f"""
-1. docker-compose.yml — Add service block:
-
-   {app_name}:
-     <<: *gpu
-     profiles: [{app_name}]
-     build:
-       context: ./comfyui
-       args:
-         APP: {app_name}
-         COMFY_REF: ${'{'}COMFY_REF_{app_name.upper()}{'}':-{comfy_ver}}
-         CACHEBUST: ${'{'}CACHEBUST:-0{'}'}
-     image: comfyui-{app_name}:local
-     container_name: comfyui-{app_name}
-     ports:
-       - "${'{'}_{app_name.upper()}_PORT:-<pick-port>{'}'}:8188"
-     volumes:
-       - ${'{'}COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models{'}'}:/comfyui/models
-       - ./data/{app_name}:/data
-       - ${'{'}AUX_CACHE_DIR:-./data/{app_name}/cache{'}'}:/data/cache
-     environment:
-       NVIDIA_VISIBLE_DEVICES: all
-       HF_TOKEN: ${'{'}HF_TOKEN:-{'}'}
-
-2. .env / .env.example — Add port:
-   {app_name.upper()}_PORT=<pick-port>
-
-3. Makefile — Add '{app_name}' to:
-   - COMPOSE profiles list
-   - The app targets line: krea2 ideogram ltx minimax {app_name}
-   - .PHONY line
-   - version loop
-
-4. Add workflow JSONs to:
-   comfyui/apps/{app_name}/workflows/
-
-5. Tune constraints.txt and extras.txt based on what the app actually needs.
-
-6. Build and test:
-   make build    # or: sudo docker compose --profile {app_name} build {app_name}
-   make {app_name}
-""")
+def extras_txt(pkgs):
+    lines = ["# Extra pip packages installed after the custom nodes.",
+             "# Taken from explicit `pip install` lines in the .bat (locked stack excluded)."]
+    lines += pkgs or ["# (none in the installer)"]
+    return "\n".join(lines) + "\n"
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate aitrepreneur-docker app config from a .bat file"
-    )
-    parser.add_argument("app_name", help="Name of the new app (e.g. anima, flux, etc.)")
-    parser.add_argument("bat_file", help="Path to the .bat installer file")
-    parser.add_argument("--dry-run", action="store_true", help="Print what would be done without writing files")
-    parser.add_argument("--comfy-ver", default=None, help="Override ComfyUI version (auto-detected if not set)")
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("app_name")
+    ap.add_argument("bat_file")
+    ap.add_argument("--dry-run", action="store_true", help="print the files instead of writing them")
+    ap.add_argument("--force", action="store_true", help="overwrite an existing app directory")
+    ap.add_argument("--comfy-ver", help="override the detected ComfyUI version")
+    ap.add_argument("--choose", action="append", default=[], metavar="VAR=value",
+                    help="pick a value for a multi-valued .bat variable")
+    args = ap.parse_args()
 
-    bat_path = Path(args.bat_file)
-    if not bat_path.exists():
-        print(f"Error: File not found: {bat_path}", file=sys.stderr)
-        sys.exit(1)
+    if not re.fullmatch(r"[a-z][a-z0-9]*", args.app_name):
+        sys.exit("app name must be lowercase letters/digits (e.g. qwen, wan22)")
+    bat = Path(args.bat_file).expanduser()
+    if not bat.is_file():
+        sys.exit(f"not found: {bat}")
 
-    content = bat_path.read_text(encoding='utf-8', errors='ignore')
+    text = bat.read_text(encoding="utf-8", errors="ignore")
+    lines = read_lines(text)
+    values = collect_vars(lines)
+    chosen = {}
+    for c in args.choose:
+        k, _, v = c.partition("=")
+        chosen[k.upper()] = v
+    expand = make_expander(values, chosen)
 
-    print(f"Parsing: {bat_path}")
-    print(f"App name: {args.app_name}")
-    print()
+    warnings = []
+    nodes = parse_nodes(lines, expand, warnings)
+    models = parse_models(lines, expand, warnings)
+    pkgs = parse_pip(lines, expand)
+    comfy_ver = args.comfy_ver or parse_comfy_version(text, expand)
+    if not comfy_ver:
+        comfy_ver = "master"
+        warnings.append("no ComfyUI version found in the .bat; defaulting to master")
 
-    nodes = parse_git_clones(content)
-    models = parse_model_downloads(content)
-    comfy_ver = args.comfy_ver or parse_comfy_version(content)
-    hf_base = parse_hf_base_url(content)
+    choices = {k: v for k, v in values.items() if len(v) > 1 and k not in chosen}
+    relevant = [l for _, l in lines if re.search(r":clone|git\s+clone|:grab|curl\b", l, re.IGNORECASE)]
+    used = {k for k in choices if any(re.search(rf"[%!]{k}[%!]", l, re.IGNORECASE) for l in relevant)}
 
-    print(f"Found {len(nodes)} custom nodes:")
-    for folder, url in nodes:
-        print(f"  - {folder}: {url}")
-    print()
+    print(f"Parsed {bat.name}")
+    print(f"  ComfyUI:      {comfy_ver}")
+    print(f"  Custom nodes: {len(nodes)}")
+    for folder, url, ref in nodes:
+        print(f"    {folder:45} {url}{'  @' + ref if ref else ''}")
+    print(f"  Model files:  {len(models)}")
+    for rel, _ in models:
+        print(f"    {rel}")
+    if pkgs:
+        print(f"  pip packages: {' '.join(pkgs)}")
+    for k in sorted(used):
+        print(f"  CHOICE {k}: {values[k]} (using '{values[k][0]}'; override with --choose {k}=...)")
+    for w in warnings:
+        print(f"  WARNING {w}")
 
-    print(f"Found {len(models)} model files:")
-    for path, url in models:
-        print(f"  - {path}")
-    print()
-
-    print(f"ComfyUI version: {comfy_ver}")
-    if hf_base:
-        print(f"HF base URL: {hf_base}")
-    print()
-
-    create_app_directory(args.app_name, nodes, models, comfy_ver, hf_base, dry_run=args.dry_run)
-
-    if not args.dry_run:
-        print_next_steps(args.app_name, comfy_ver)
+    files = {
+        "nodes.txt": nodes_txt(nodes, bat.name),
+        "models.txt": models_txt(models, bat.name, chosen),
+        "constraints.txt": constraints_txt(bat.name, comfy_ver),
+        "extras.txt": extras_txt(pkgs),
+    }
+    app_dir = Path(__file__).resolve().parent.parent / "comfyui" / "apps" / args.app_name
+    if args.dry_run:
+        for name, content in files.items():
+            print(f"\n──── {app_dir / name}\n{content}", end="")
+        return
+    if app_dir.exists() and not args.force:
+        sys.exit(f"\n{app_dir} already exists (use --force to overwrite)")
+    (app_dir / "workflows").mkdir(parents=True, exist_ok=True)
+    for name, content in files.items():
+        (app_dir / name).write_text(content)
+    print(f"\nWrote {app_dir}/{{{','.join(files)}}} and workflows/")
+    print(f"COMFY_VER={comfy_ver}")
 
 
 if __name__ == "__main__":
