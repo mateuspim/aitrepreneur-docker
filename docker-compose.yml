@@ -14,6 +14,25 @@ x-gpu: &gpu
   restart: unless-stopped
 
 services:
+  proxy:
+    image: caddy:2.10.2
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      AUTH_USER: ${AUTH_USER:?Run make auth-password first}
+      AUTH_HASH: ${AUTH_HASH:?Run make auth-password first}
+    ports:
+      - "${AI_TOOLKIT_PORT:-8675}:8675"
+      - "${IDEOGRAM_PORT:-8189}:8189"
+      - "${LTX_PORT:-8190}:8190"
+      - "${MINIMAX_PORT:-8191}:8191"
+      - "${ANIMA_PORT:-8192}:8192"
+      - "${KLEIN_PORT:-8193}:8193"
+      - "${QWEN_PORT:-8195}:8195"
+      - "${LORAMGR_PORT:-8194}:8194"
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+
   ai-toolkit:
     <<: *gpu
     build:
@@ -24,8 +43,6 @@ services:
         CACHEBUST: ${CACHEBUST:-0}
     image: ai-toolkit:local
     container_name: ai-toolkit
-    ports:
-      - "${AI_TOOLKIT_PORT:-8675}:8675"
     volumes:
       - ./data/ai-toolkit:/data
       - ${DATASETS_DIR:-./data/ai-toolkit/datasets}:/data/datasets
@@ -74,8 +91,6 @@ services:
         CACHEBUST: ${CACHEBUST:-0}
     image: comfyui-ideogram:local
     container_name: comfyui-ideogram
-    ports:
-      - "${IDEOGRAM_PORT:-8189}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Ideogram:/comfyui/models/loras
@@ -102,8 +117,6 @@ services:
         CACHEBUST: ${CACHEBUST:-0}
     image: comfyui-ltx:local
     container_name: comfyui-ltx
-    ports:
-      - "${LTX_PORT:-8190}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Ltx:/comfyui/models/loras
@@ -127,8 +140,6 @@ services:
         CACHEBUST: ${CACHEBUST:-0}
     image: comfyui-minimax:local
     container_name: comfyui-minimax
-    ports:
-      - "${MINIMAX_PORT:-8191}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Minimax:/comfyui/models/loras
@@ -152,8 +163,6 @@ services:
         CACHEBUST: ${CACHEBUST:-0}
     image: comfyui-anima:local
     container_name: comfyui-anima
-    ports:
-      - "${ANIMA_PORT:-8192}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}/loras/Anima:/comfyui/models/loras
@@ -177,8 +186,6 @@ services:
         CACHEBUST: ${CACHEBUST:-0}
     image: comfyui-klein:local
     container_name: comfyui-klein
-    ports:
-      - "${KLEIN_PORT:-8193}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
       # LoRA Manager categorizes FLUX.2 Klein 9B downloads under this folder.
@@ -203,8 +210,6 @@ services:
         CACHEBUST: ${CACHEBUST:-0}
     image: comfyui-qwen:local
     container_name: comfyui-qwen
-    ports:
-      - "${QWEN_PORT:-8195}:8188"
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
       # LoRA Manager categorizes Qwen Image 2.1 downloads under this folder.
@@ -232,8 +237,6 @@ services:
         CACHEBUST: ${CACHEBUST:-0}
     image: lora-manager:local
     container_name: lora-manager
-    ports:
-      - "${LORAMGR_PORT:-8194}:8188"
     volumes:
       # Must stay rw: the manager writes .metadata.json sidecars and preview
       # images next to the model files themselves.

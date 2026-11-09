@@ -170,8 +170,7 @@ Add a service block (copy from an existing app and change names):
         CACHEBUST: ${CACHEBUST:-0}
     image: comfyui-<name>:local
     container_name: comfyui-<name>
-    ports:
-      - "${<NAME>_PORT:-<port>}:8188"
+    # No ports: the proxy publishes the host port.
     volumes:
       - ${COMFYUI_MODELS_DIR:-/mnt/gungnir/comfyui/models}:/comfyui/models
       - ./data/<name>:/data
@@ -263,3 +262,5 @@ First start downloads all models. Watch with `make logs-<name>`.
 | Model download fails | Check URL, HF token, internet. Curl resumes on restart |
 | Node import error | Missing pip dep → add to extras.txt, rebuild |
 | Wrong ComfyUI version | Update `COMFY_REF_<NAME>` in .env, `make upgrade-<name>` |
+
+Register the port in the proxy service and add a matching site block to `proxy/Caddyfile`; `wire-app.py` does both. Live checks prompt for the proxy password or use `AITD_PASSWORD`.

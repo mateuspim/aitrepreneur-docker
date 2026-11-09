@@ -119,8 +119,6 @@ def main():
         CACHEBUST: ${{CACHEBUST:-0}}
     image: comfyui-{name}:local
     container_name: comfyui-{name}
-    ports:
-      - "${{{NAME}_PORT:-{port}}}:8188"
     volumes:
       - {models}:/comfyui/models
 {lora_comment}      - {models}/loras/{lora_dir}:/comfyui/models/loras
@@ -132,6 +130,17 @@ def main():
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       HF_TOKEN: ${{HF_TOKEN:-}}
+
+""")
+
+    e.insert_before("docker-compose.yml", "    volumes:\n      - ./proxy/Caddyfile", f'      - "${{{NAME}_PORT:-{port}}}:{port}"\n')
+    e.set("proxy/Caddyfile", e.text("proxy/Caddyfile") + f""":{port} {{
+    import auth
+    reverse_proxy {name}:8188
+    handle_errors {{
+        respond "{name} is not running — start it with make {name} or the TUI" {{err.status_code}}
+    }}
+}}
 
 """)
 
@@ -156,12 +165,14 @@ def main():
     mk = "Makefile"
     e.sub(mk, r"^(COMPOSE = .*?)( --profile loramgr)$", rf"\1 --profile {name}\2", what="COMPOSE line")
     e.sub(mk, r"^(# anima, .*?)(, loramgr)", rf"\1, {name}\2", what="APP targets comment")
-    e.sub(mk, r"^([a-z0-9 ]+): setup ## Start one ComfyUI app \((.*)\)$",
-          rf"\1 {name}: setup ## Start one ComfyUI app (\2, {name} :{port})", what="app target")
+    e.sub(mk, r"^([a-z0-9 ]+): proxy ## Start one ComfyUI app \((.*)\)$",
+          rf"\1 {name}: proxy ## Start one ComfyUI app (\2, {name} :{port})", what="app target")
     e.sub(mk, r"( lora-manager:/opt/lora-manager-commit\.txt; do)",
           rf" comfyui-{name}:/opt/app/comfyui-commit.txt\1", what="version loop")
     e.sub(mk, r"^(\tfor input_dir in .*?); do", rf"\1 data/{name}/input; do", what="delete-input loop")
     e.sub(mk, r"^(\.PHONY: .*?)( loramgr )", rf"\1 {name}\2", what=".PHONY")
+
+    e.sub(mk, r"qwen\) echo 8195;;", rf"qwen) echo 8195;; {name}) echo {port};;", what="proxy port lookup")
 
     # ── README.md
     rd = "README.md"

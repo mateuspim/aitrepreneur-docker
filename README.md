@@ -26,6 +26,8 @@ actually used by the build; the rest is optional reference).
 | `qwen` | ComfyUI + Qwen Image Edit 2.1 (Ultra / Ultra Turbo) | `make qwen` | <http://localhost:8195> |
 | `loramgr` | [LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) standalone edition (organize/preview/download loras over the shared model tree; no ComfyUI, CPU-only) | `make loramgr` | <http://localhost:8194/loras> |
 
+All URLs require the shared proxy login. Run `make auth-password` first and see [security](docs/SECURITY.md). Ports are published by Caddy; apps are only accessible on the Compose network.
+
 Ports are the defaults; override them in `.env` (`AI_TOOLKIT_PORT`,
 `KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`, `MINIMAX_PORT`, `ANIMA_PORT`,
 `KLEIN_PORT`, `QWEN_PORT`).

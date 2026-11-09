@@ -17,13 +17,19 @@ setup: ## One-time: create .env from the template
 build: setup ## Build every image (cached layers reused)
 	$(COMPOSE) build
 
-up: setup ## Start ai-toolkit (training UI) at :8675
+proxy: setup ## Start the authenticated proxy
+	sudo docker compose up -d --no-deps proxy
+
+auth-password: setup ## Set the shared proxy login
+	python3 scripts/auth-password.py
+
+up: proxy ## Start ai-toolkit (training UI) at :8675
 	sudo docker compose up -d --force-recreate ai-toolkit
 
-krea2 ideogram ltx minimax anima klein qwen: setup ## Start one ComfyUI app (krea2 :8188, ideogram :8189, ltx :8190, minimax :8191, anima :8192, klein :8193, qwen :8195)
+krea2 ideogram ltx minimax anima klein qwen: proxy ## Start one ComfyUI app (krea2 :8188, ideogram :8189, ltx :8190, minimax :8191, anima :8192, klein :8193, qwen :8195)
 	sudo docker compose --profile $@ up -d --force-recreate $@
 	@lan_ip=$$(ip -4 -o addr show scope global 2>/dev/null | awk '$$2 !~ /^(docker|br-|veth)/ {print $$4}' | cut -d/ -f1 | paste -sd, -); \
-	 port=$$(sudo docker compose --profile $@ port $@ 8188 2>/dev/null | awk -F: '{print $$NF}'); \
+	 port=$$(sudo docker compose --profile $@ port proxy $$(case $@ in krea2) echo 8188;; ideogram) echo 8189;; ltx) echo 8190;; minimax) echo 8191;; anima) echo 8192;; klein) echo 8193;; qwen) echo 8195;; esac) 2>/dev/null | awk -F: '{print $$NF}'); \
 	 echo "UI:  http://localhost:$${port:-?}  |  http://$${lan_ip:-?}:$${port:-?}"; \
 	 sleep 2; \
 	 if sudo docker compose --profile $@ logs --since 1m $@ 2>/dev/null | grep -q '\[DL\]'; then \
@@ -32,14 +38,14 @@ krea2 ideogram ltx minimax anima klein qwen: setup ## Start one ComfyUI app (kre
 	   echo "MODELS: no active download — models already present or container still booting; verify with: make logs-$@"; \
 	 fi
 
-loramgr: setup ## Start LoRA Manager (standalone, no ComfyUI) at :8194/loras
+loramgr: proxy ## Start LoRA Manager (standalone, no ComfyUI) at :8194/loras
 	sudo docker compose --profile loramgr up -d --force-recreate loramgr
 	@lan_ip=$$(ip -4 -o addr show scope global 2>/dev/null | awk '$$2 !~ /^(docker|br-|veth)/ {print $$4}' | cut -d/ -f1 | paste -sd, -); \
-	 port=$$(sudo docker compose --profile loramgr port loramgr 8188 2>/dev/null | awk -F: '{print $$NF}'); \
+	 port=$$(sudo docker compose --profile loramgr port proxy 8194 2>/dev/null | awk -F: '{print $$NF}'); \
 	 echo "UI:  http://localhost:$${port:-?}/loras  |  http://$${lan_ip:-?}:$${port:-?}/loras"; \
 	 echo "CivitAI API key + model folders: Settings page in the UI (first run creates ./data/loramgr/settings.json)"
 
-up-all: setup ## Start ai-toolkit + all ComfyUI apps + LoRA Manager
+up-all: proxy ## Start ai-toolkit + all ComfyUI apps + LoRA Manager
 	$(COMPOSE) up -d --force-recreate
 
 down: ## Stop everything
@@ -84,4 +90,4 @@ delete-input: ## Delete all persisted ComfyUI input files (keeps the input folde
 		fi; \
 	done
 
-.PHONY: help setup setup-model-dirs build up up-all krea2 ideogram ltx minimax anima klein qwen loramgr down status upgrade version gpu-check delete-input
+.PHONY: proxy auth-password help setup setup-model-dirs build up up-all krea2 ideogram ltx minimax anima klein qwen loramgr down status upgrade version gpu-check delete-input
