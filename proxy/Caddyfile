@@ -79,4 +79,3 @@
         respond "loramgr is not running — start it with make loramgr or the TUI" {err.status_code}
     }
 }
-
