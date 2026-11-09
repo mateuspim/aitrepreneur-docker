@@ -268,6 +268,10 @@ class Output(ModalScreen):
         self.dismiss()
 
 
+class DetailPane(VerticalScroll):
+    can_focus = True
+
+
 class Dashboard(App):
     TITLE = "AITREPRENEUR"
     SUB_TITLE = "Service dashboard"
@@ -287,6 +291,7 @@ class Dashboard(App):
     #services > ListItem.--highlight { background: #263b53; }
     #services:focus > ListItem.--highlight { background: #29455f; }
     #detail { width: 1fr; height: 1fr; margin-left: 1; border: round #33475e; background: #111b29; padding: 1 2; overflow-y: auto; }
+    #detail:focus { border: round #79c9ff; }
     #detail-content { width: 1fr; height: auto; }
     #dialog { width: 70%; height: auto; max-height: 70%; padding: 1 2; border: thick $accent; background: $surface; align: center middle; }
     Confirm, PasswordPrompt { align: center middle; background: $background 70%; }
@@ -295,7 +300,7 @@ class Dashboard(App):
     Output Label { height: 1; }
     Output RichLog { height: 1fr; border: solid $primary; }
     """
-    BINDINGS = [Binding("s", "start", "Start"), Binding("x", "stop", "Stop"), Binding("r", "restart", "Restart"), Binding("l", "logs", "Logs"), Binding("b", "build", "Build"), Binding("o", "open_url", "Open"), Binding("c", "copy_url", "Copy"), Binding("u", "check", "Check"), Binding("X", "stop_all", "Stop all", priority=True), Binding("question_mark", "help", "Help"), Binding("q", "quit", "Quit")]
+    BINDINGS = [Binding("s", "start", "Start"), Binding("x", "stop", "Stop"), Binding("r", "restart", "Restart"), Binding("L", "logs", "Logs"), Binding("h", "focus_services", "Services", show=False), Binding("l", "focus_detail", "Details", show=False), Binding("j", "move_down", "Down", show=False), Binding("k", "move_up", "Up", show=False), Binding("b", "build", "Build"), Binding("o", "open_url", "Open"), Binding("c", "copy_url", "Copy"), Binding("u", "check", "Check"), Binding("X", "stop_all", "Stop all", priority=True), Binding("question_mark", "help", "Help"), Binding("q", "quit", "Quit")]
 
     def __init__(self):
         super().__init__()
@@ -315,7 +320,7 @@ class Dashboard(App):
             with Vertical(id="sidebar"):
                 yield Static("SERVICES  ·  ↑↓ to select", id="list-title")
                 yield ListView(id="services")
-            with VerticalScroll(id="detail"):
+            with DetailPane(id="detail"):
                 yield Static("Select a service", id="detail-content")
         yield Footer()
 
@@ -472,6 +477,24 @@ class Dashboard(App):
             self.call_after_refresh(detail.scroll_to, y=scroll_y, animate=False, force=True)
             self.rendered_detail = signature
 
+    def action_focus_services(self):
+        self.query_one("#services", ListView).focus()
+
+    def action_focus_detail(self):
+        self.query_one("#detail", DetailPane).focus()
+
+    def action_move_down(self):
+        if self.focused is self.query_one("#detail", DetailPane):
+            self.query_one("#detail", DetailPane).scroll_down(animate=False)
+        else:
+            self.query_one("#services", ListView).action_cursor_down()
+
+    def action_move_up(self):
+        if self.focused is self.query_one("#detail", DetailPane):
+            self.query_one("#detail", DetailPane).scroll_up(animate=False)
+        else:
+            self.query_one("#services", ListView).action_cursor_up()
+
     def command(self, *args):
         return DOCKER + ["compose", "--profile", "*", *args]
 
@@ -559,7 +582,7 @@ class Dashboard(App):
     def action_open_url(self): self.url_action('xdg-open')
     def action_copy_url(self): self.url_action('wl-copy')
     def action_help(self):
-        self.push_screen(Confirm('s start · x stop · r restart · l logs · b build\no open URL · c copy URL · u check app · X stop all\nq quit · Esc close pane'), lambda _: None)
+        self.push_screen(Confirm('h/l focus list/details · j/k move or scroll\ns start · x stop · r restart · L logs · b build\no open URL · c copy URL · u check app · X stop all\nq quit · Esc close pane'), lambda _: None)
 
 
 def main():
