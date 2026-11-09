@@ -24,6 +24,8 @@ Exit status is 1 when something is missing, so the skill can gate on it.
 """
 
 import argparse
+import base64
+import getpass
 import json
 import os
 import re
@@ -168,8 +170,15 @@ def main():
 
     if args.live:
         print(f"\n== live {args.live}")
+        env_text = (ROOT / ".env").read_text() if (ROOT / ".env").exists() else ""
+        match = re.search(r"^AUTH_USER=(.*)$", env_text, re.MULTILINE)
+        user = os.environ.get("AUTH_USER") or (match.group(1).strip("'\"") if match else "admin")
+        password = os.environ.get("AITD_PASSWORD") or getpass.getpass("Proxy password: ")
+        token = base64.b64encode(f"{user}:{password}".encode()).decode()
+        def authenticated(url):
+            return urllib.request.Request(url, headers={"Authorization": f"Basic {token}"})
         try:
-            with urllib.request.urlopen(args.live.rstrip("/") + "/object_info", timeout=60) as r:
+            with urllib.request.urlopen(authenticated(args.live.rstrip("/") + "/object_info"), timeout=60) as r:
                 info = json.load(r)
         except Exception as e:  # noqa: BLE001
             sys.exit(f"  cannot reach {args.live}: {e}")
@@ -181,7 +190,7 @@ def main():
             print(f"  ok   all {len(all_types)} workflow node types are registered")
         for folder in ("loras", "diffusion_models", "text_encoders", "vae"):
             try:
-                with urllib.request.urlopen(f"{args.live.rstrip('/')}/models/{folder}", timeout=30) as r:
+                with urllib.request.urlopen(authenticated(f"{args.live.rstrip('/')}/models/{folder}"), timeout=30) as r:
                     print(f"  {folder}: {len(json.load(r))} files")
             except Exception:  # noqa: BLE001
                 pass

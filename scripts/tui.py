@@ -19,10 +19,11 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Footer, Header, Label, ListItem, ListView, RichLog, Static
+from textual.widgets import Button, Footer, Header, Input, Label, ListItem, ListView, RichLog, Static
 from rich.text import Text
 
-ROOT = Path(__file__).resolve().parent.parent
+SCRIPT_ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(os.environ.get("AITD_COMPOSE_DIR", SCRIPT_ROOT)).expanduser().resolve()
 os.chdir(ROOT)
 DOCKER = shlex.split(os.environ.get("AITD_DOCKER", "sudo -n docker"))
 
@@ -180,6 +181,8 @@ def collect():
         suffix = "/loras" if name == "loramgr" else ""
         urls = [f"http://{host}:{port}{suffix}" for host in ["localhost", *lan, *ts, *([dns] if dns else [])] if port != "?"]
         data["services"][name] = {"state": state, "port": port, "urls": urls, "gpu": svc.get("runtime") == "nvidia" or bool(svc.get("gpus")), "profiles": svc.get("profiles", []), "image": image, "built": built, "ref": env.get("COMFY_REF_" + name.upper().replace("-", "_"), ""), "app": path.is_dir(), "workflows": [p.name for p in sorted((path / "workflows").glob("*")) if p.is_file()], "models_present": present, "models_missing": missing, "nodes": len(manifest(path / "nodes.txt")), "downloads": logs}
+    if "proxy" in data["services"]:
+        data["proxy"] = f"{data['services']['proxy']['state']} (basic auth configured; not independently verified)"
     return data
 
 
@@ -202,12 +205,33 @@ class Confirm(ModalScreen):
         self.dismiss(False)
 
 
+class PasswordPrompt(ModalScreen):
+    BINDINGS = [("escape", "cancel", "Cancel")]
+
+    def compose(self):
+        with Vertical(id="dialog"):
+            yield Label("Proxy password for the live check (Esc cancels)")
+            yield Input(password=True, placeholder="Password", id="password")
+            yield Button("Check", id="submit", variant="primary")
+
+    def on_input_submitted(self, event):
+        self.dismiss(event.value or None)
+
+    def on_button_pressed(self, event):
+        self.dismiss(self.query_one(Input).value or None)
+
+    def action_cancel(self):
+        self.dismiss(None)
+
+
 class Output(ModalScreen):
     BINDINGS = [("escape", "close", "Close")]
 
-    def __init__(self, title, command):
+    def __init__(self, title, command, extra_env=None, on_success=None):
         super().__init__()
         self.title_text, self.command = title, command
+        self.extra_env = extra_env or {}
+        self.on_success = on_success
         self.proc = None
 
     def compose(self):
@@ -221,12 +245,16 @@ class Output(ModalScreen):
         log = self.query_one(RichLog)
         log.write("$ " + shlex.join(self.command))
         try:
-            self.proc = await asyncio.create_subprocess_exec(*self.command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+            self.proc = await asyncio.create_subprocess_exec(*self.command, env={**os.environ, **self.extra_env}, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
             while line := await self.proc.stdout.readline():
                 log.write(Text(line.decode(errors="replace").rstrip()))
             code = await self.proc.wait()
             if code and self.command[:2] == ["sudo", "-n"]:
                 log.write("If sudo needs a password, exit and run make tui again.")
+            if code == 0 and self.on_success:
+                self.command, self.on_success = self.on_success, None
+                await self.stream()
+                return
             log.write(f"\nExited with status {code}")
         except OSError as e:
             log.write(str(e))
@@ -244,7 +272,7 @@ class Dashboard(App):
     #services { width: 33%; border: solid $primary; }
     #detail { width: 67%; border: solid $primary; padding: 1; overflow-y: auto; }
     #dialog { width: 70%; height: auto; max-height: 70%; padding: 1 2; border: thick $accent; background: $surface; align: center middle; }
-    Confirm { align: center middle; background: $background 70%; }
+    Confirm, PasswordPrompt { align: center middle; background: $background 70%; }
     Confirm Horizontal { height: 3; align: center middle; }
     Output { background: $surface; padding: 1; }
     Output Label { height: 1; }
@@ -293,7 +321,7 @@ class Dashboard(App):
 
     def render_state(self):
         d = self.data
-        summary = f"{d['gpu']}\nLAN: {', '.join(d['lan']) or 'unavailable'} | Tailscale: {', '.join(d['tailscale']) or 'unavailable'} | MagicDNS: {d['magicdns'] or 'unavailable'}\nProxy: {d['proxy']}"
+        summary = f"Project: {ROOT} | {d['gpu']}\nLAN: {', '.join(d['lan']) or 'unavailable'} | Tailscale: {', '.join(d['tailscale']) or 'unavailable'} | MagicDNS: {d['magicdns'] or 'unavailable'}\nProxy: {d['proxy']}"
         if d['error']:
             summary += "\n" + d['error']
         self.query_one("#summary", Static).update(Text(summary))
@@ -328,8 +356,8 @@ class Dashboard(App):
     def command(self, *args):
         return DOCKER + ["compose", "--profile", "*", *args]
 
-    def output(self, title, command):
-        self.push_screen(Output(title, command), lambda _: self.refresh_state())
+    def output(self, title, command, extra_env=None, on_success=None):
+        self.push_screen(Output(title, command, extra_env, on_success), lambda _: self.refresh_state())
 
     def action_start(self):
         name = self.selected
@@ -341,7 +369,10 @@ class Dashboard(App):
             if yes:
                 profile = item['profiles'][0] if item['profiles'] else None
                 cmd = DOCKER + ['compose'] + (['--profile', profile] if profile else []) + ['up', '-d', '--force-recreate', name]
-                self.output('Start ' + name, cmd)
+                if 'proxy' in self.data['services'] and name != 'proxy':
+                    self.output('Start proxy and ' + name, DOCKER + ['compose', 'up', '-d', '--no-deps', 'proxy'], on_success=cmd)
+                else:
+                    self.output('Start ' + name, cmd)
         if item['gpu'] and others:
             self.push_screen(Confirm('GPU apps running: ' + ', '.join(others) + '\n' + self.data['gpu'] + '\nStart ' + name + '?'), start)
         else:
@@ -374,7 +405,17 @@ class Dashboard(App):
         cmd = [sys.executable, str(ROOT / 'scripts/check-app.py'), self.selected]
         if item['state'] in ('running', 'downloading models') and item['urls']:
             cmd += ['--live', item['urls'][0]]
-        self.output('Check ' + self.selected, cmd)
+        if '--live' in cmd and 'proxy' in self.data['services']:
+            password = os.environ.get('AITD_PASSWORD')
+            def check(password):
+                if password:
+                    self.output('Check ' + self.selected, cmd, {'AITD_PASSWORD': password})
+            if password:
+                check(password)
+            else:
+                self.push_screen(PasswordPrompt(), check)
+        else:
+            self.output('Check ' + self.selected, cmd)
 
     def url_action(self, program):
         item = self.data['services'].get(self.selected)

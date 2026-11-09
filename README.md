@@ -26,6 +26,8 @@ actually used by the build; the rest is optional reference).
 | `qwen` | ComfyUI + Qwen Image Edit 2.1 (Ultra / Ultra Turbo) | `make qwen` | <http://localhost:8195> |
 | `loramgr` | [LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) standalone edition (organize/preview/download loras over the shared model tree; no ComfyUI, CPU-only) | `make loramgr` | <http://localhost:8194/loras> |
 
+All URLs require the shared proxy login. Run `make auth-password` first and see [security](docs/SECURITY.md). Ports are published by Caddy; apps are only accessible on the Compose network.
+
 Ports are the defaults; override them in `.env` (`AI_TOOLKIT_PORT`,
 `KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`, `MINIMAX_PORT`, `ANIMA_PORT`,
 `KLEIN_PORT`, `QWEN_PORT`).
@@ -70,7 +72,9 @@ Day to day: `make up` / `make krea2` / `make ideogram` / `make ltx` /
 
 Run `make tui` to open the interactive dashboard (requires [uv](https://docs.astral.sh/uv/), Docker Compose and sudo). It shows service state, GPU use, network URLs, workflows and model availability. `sudo -v` prompts in the terminal before the dashboard starts; Docker commands inside it are noninteractive. For Docker-group setups, run `AITD_DOCKER=docker uv run scripts/tui.py`.
 
-Select a service with the arrow keys. Press `s` to start, `x` to stop, `r` to restart, `b` to build, `l` for live logs, `o` to open its local URL, `c` to copy it, or `u` to check a ComfyUI app. `X` stops all services after confirmation; `?` shows help, `Esc` closes a pane, and `q` quits. Starting another GPU app asks for confirmation. `uv run scripts/tui.py --snapshot` prints the computed state without opening the interface.
+Select a service with the arrow keys. Press `s` to start, `x` to stop, `r` to restart, `b` to build, `l` for live logs, `o` to open its local URL, `c` to copy it, or `u` to check a ComfyUI app. `X` stops all services after confirmation; `?` shows help, `Esc` closes a pane, and `q` quits. Starting another GPU app asks for confirmation. `uv run scripts/tui.py --snapshot` prints the computed state without opening the interface. Live checks prompt for the proxy password (or use `AITD_PASSWORD`).
+
+The dashboard controls the Compose project in its current checkout. To control a stack running from another checkout, point it there explicitly, for example `AITD_COMPOSE_DIR=/path/to/aitrepreneur-docker make tui`. Its project directory is shown at the top of the dashboard; ensure it is the running checkout before using service controls.
 
 ## Data layout
 

@@ -88,7 +88,7 @@ python3 scripts/wire-app.py <name> --comfy-ref <COMFY_VER from step 2> \
   --prefixes "<extra lora prefixes>" --dry-run
 ```
 
-Review the diff, then run without `--dry-run`. It picks the next free port.
+Review the diff, then run without `--dry-run`. It picks the next free port and registers it with the authenticated proxy.
 Validate: `docker compose config -q && bash -n scripts/migrate-model-dirs.sh`.
 
 ## 5. Build
@@ -123,7 +123,7 @@ pkexec sh -c 'cd <repo> && docker compose --profile <name> up -d --force-recreat
 
 The entrypoint downloads every `models.txt` file before ComfyUI starts, so the
 UI is down until then. Docker logs need root; track progress by checking
-`<models dir>/<path>` vs `<path>.part` instead. When the port answers:
+`<models dir>/<path>` vs `<path>.part` instead. When the port answers (set `AITD_PASSWORD` or enter the proxy password when prompted):
 
 ```bash
 python3 scripts/check-app.py <name> --live http://localhost:<port>
