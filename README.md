@@ -66,6 +66,12 @@ Day to day: `make up` / `make krea2` / `make ideogram` / `make ltx` /
 `make minimax` / `make anima` / `make klein` / `make qwen`, `make stop-<app>`, `make logs-<app>`, `make shell-<app>`,
 `make down`.
 
+## TUI
+
+Run `make tui` to open the interactive dashboard (requires [uv](https://docs.astral.sh/uv/), Docker Compose and sudo). It shows service state, GPU use, network URLs, workflows and model availability. `sudo -v` prompts in the terminal before the dashboard starts; Docker commands inside it are noninteractive. For Docker-group setups, run `AITD_DOCKER=docker uv run scripts/tui.py`.
+
+Select a service with the arrow keys. Press `s` to start, `x` to stop, `r` to restart, `b` to build, `l` for live logs, `o` to open its local URL, `c` to copy it, or `u` to check a ComfyUI app. `X` stops all services after confirmation; `?` shows help, `Esc` closes a pane, and `q` quits. Starting another GPU app asks for confirmation. `uv run scripts/tui.py --snapshot` prints the computed state without opening the interface.
+
 ## Data layout
 
 Everything stateful lives outside the containers. Rebuilding or upgrading

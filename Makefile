@@ -8,6 +8,10 @@ COMPOSE = sudo docker compose --profile krea2 --profile ideogram --profile ltx -
 help: ## List available targets
 	@grep -E '^[a-z%-]+:.*##' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
 
+tui: ## Open the interactive service dashboard
+	sudo -v
+	uv run scripts/tui.py
+
 setup-model-dirs: ## Reorganise shared loras/controlnet/checkpoints/embeddings into app subfolders (dry-run; pass ARGS=--apply)
 	@sudo bash scripts/migrate-model-dirs.sh $(ARGS)
 
@@ -84,4 +88,4 @@ delete-input: ## Delete all persisted ComfyUI input files (keeps the input folde
 		fi; \
 	done
 
-.PHONY: help setup setup-model-dirs build up up-all krea2 ideogram ltx minimax anima klein qwen loramgr down status upgrade version gpu-check delete-input
+.PHONY: tui help setup setup-model-dirs build up up-all krea2 ideogram ltx minimax anima klein qwen loramgr down status upgrade version gpu-check delete-input
