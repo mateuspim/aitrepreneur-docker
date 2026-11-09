@@ -10,25 +10,38 @@ Use this workflow when you want to add a new ComfyUI app/profile to the aitrepre
 - You know the app name (e.g. `flux`, `wan`, `cogvideo`, etc.)
 - You know which ComfyUI version it needs (or can detect it from the .bat)
 
-## Quick Method: Use the Script
+## Quick Method: Use the Scripts
+
+In Claude Code, run `/install-bat <path-to-bat>`: the
+[`install-bat` skill](../.claude/skills/install-bat/SKILL.md) drives the whole
+flow below, including the build and the live check. By hand:
 
 ```bash
-# Parse a .bat file and auto-generate the app config
-python scripts/add-app-from-bat.py <app-name> <path-to-bat-file>
+# 1. Parse the .bat (dry run first; resolve every CHOICE / WARNING line)
+python3 scripts/add-app-from-bat.py <name> <path-to-bat> --dry-run
+python3 scripts/add-app-from-bat.py <name> <path-to-bat> [--choose QUANT=Q5_K_S]
 
-# Example (dry run first to see what it would do)
-python scripts/add-app-from-bat.py anima /path/to/ANIMA_BASE_ULTRA-MODELS-NODES_INSTALL.bat --dry-run
+# 2. Add the workflows (gitignore them: Patreon content)
+cp <bat-folder>/*.json comfyui/apps/<name>/workflows/
 
-# Actually create the files
-python scripts/add-app-from-bat.py anima /path/to/ANIMA_BASE_ULTRA-MODELS-NODES_INSTALL.bat
+# 3. Check workflows vs manifests and every download URL
+python3 scripts/check-app.py <name> --urls
+
+# 4. Wire compose, .env/.env.example, Makefile, README, migrate script
+python3 scripts/wire-app.py <name> --comfy-ref <ver> --title "<description>" \
+  --lora-dir "<LoRA Manager folder, e.g. Qwen 2.1>" --dry-run   # then without --dry-run
+
+# 5. Build, start, then confirm every workflow node registered
+docker compose --profile <name> build <name> && make <name>
+python3 scripts/check-app.py <name> --live http://localhost:<port>
 ```
 
-This creates:
-- `comfyui/apps/<name>/nodes.txt`
-- `comfyui/apps/<name>/models.txt`
-- `comfyui/apps/<name>/constraints.txt`
-- `comfyui/apps/<name>/extras.txt`
-- `comfyui/apps/<name>/workflows/` (empty — you add JSONs)
+The parser expands `%VAR%`/`!VAR!`, joins `^` continuations, handles
+`call :clone` / `git clone` (with `-b` and `git -C <dir> checkout <ref>` pins)
+and `call :grab` / `curl -o`, and keeps model paths exactly as the .bat writes
+them. The generated `constraints.txt` is the baseline that resolves the
+common node set (controlnet_aux, essentials, ...) on py3.12; see the skill's
+build troubleshooting table if pip still fails.
 
 ## Manual Method: Step by Step
 
