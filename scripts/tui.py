@@ -144,7 +144,7 @@ def collect():
     services, error = compose_config(env)
     lan, ts, dns = network()
     data = {"gpu": gpu(), "lan": lan, "tailscale": ts, "magicdns": dns, "error": error, "proxy": "configured (authentication depends on proxy configuration)" if "proxy" in services else "not configured", "services": {}}
-    states, images = {}, set()
+    states, images = {}, None
     if not error:
         code, out, err = run(DOCKER + ["compose", "--profile", "*", "ps", "-a", "--format", "json"])
         if code:
@@ -162,21 +162,24 @@ def collect():
         row = states.get(name, {})
         state = row.get("State", "stopped").lower()
         image = svc.get("image", "")
-        built = (image in images) if not data['error'] and image else None
-        if not data["error"] and not row and image and not built and svc.get("build"):
+        built = (image in images) if not data['error'] and image and images is not None else None
+        if not data["error"] and not row and image and built is False and svc.get("build"):
             state = "not built"
         if data["error"]:
             state = "unknown"
-        logs = []
-        if state == "running":
-            _, out, _ = run(DOCKER + ["compose", "--profile", "*", "logs", "--since", "30s", "--tail", "100", name])
-            logs = [line for line in out.splitlines() if "[DL]" in line][-8:]
-            if logs:
-                state = "downloading models"
         path = ROOT / "comfyui" / "apps" / name
         models = manifest(path / "models.txt")
         present = [r[0] for r in models if model_path(r[0], svc, env).is_file()]
         missing = [r[0] for r in models if r[0] not in present]
+        logs = []
+        if state == "running" and path.is_dir():
+            _, out, _ = run(DOCKER + ["compose", "--profile", "*", "logs", "--tail", "100", name])
+            logs = [line for line in out.splitlines() if "[DL]" in line][-8:]
+            # The entrypoint writes one [DL] line before curl, which can run
+            # for hours. Its .part file persists throughout the download.
+            partial = any(Path(str(model_path(rel, svc, env)) + ".part").is_file() for rel in missing)
+            if partial:
+                state = "downloading models"
         port = port_for(name, svc, services, env)
         suffix = "/loras" if name == "loramgr" else ""
         urls = [f"http://{host}:{port}{suffix}" for host in ["localhost", *lan, *ts, *([dns] if dns else [])] if port != "?" and name != "proxy"]
@@ -489,8 +492,13 @@ class Dashboard(App):
                     self.output('Start proxy and ' + name, DOCKER + ['compose', 'up', '-d', '--no-deps', 'proxy'], on_success=cmd)
                 else:
                     self.output('Start ' + name, cmd)
+        warnings = []
+        if item['state'] in ('running', 'downloading models', 'restarting'):
+            warnings.append(name + ' is already active; starting it will recreate its container and interrupt any work.')
         if item['gpu'] and others:
-            self.push_screen(Confirm('GPU apps running: ' + ', '.join(others) + '\n' + self.data['gpu'] + '\nStart ' + name + '?'), start)
+            warnings.append('Other GPU apps running: ' + ', '.join(others) + '\n' + self.data['gpu'])
+        if warnings:
+            self.push_screen(Confirm('\n\n'.join(warnings) + '\n\nStart ' + name + '?'), start)
         else:
             start()
 
@@ -518,7 +526,7 @@ class Dashboard(App):
         if not item or not item['app']:
             self.notify('Checks are available for ComfyUI apps', severity='warning')
             return
-        cmd = [sys.executable, str(ROOT / 'scripts/check-app.py'), self.selected]
+        cmd = [sys.executable, str(ROOT / 'scripts/check-app.py'), self.selected, '--models-dir', env_values().get('COMFYUI_MODELS_DIR', '/mnt/gungnir/comfyui/models')]
         if item['state'] in ('running', 'downloading models') and item['urls']:
             cmd += ['--live', item['urls'][0]]
         if '--live' in cmd and 'proxy' in self.data['services']:
