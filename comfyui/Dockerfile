@@ -94,8 +94,8 @@ RUN bash /opt/app/install-nodes.sh /opt/app/nodes.txt
 
 # App-specific extra packages (workflow dependencies).
 COPY apps/${APP}/extras.txt /opt/app/extras.txt
-RUN xargs -a /opt/app/extras.txt -r pip install --no-cache-dir --prefer-binary \
-    -c /opt/app/constraints.txt
+RUN sed -e 's/#.*//' -e '/^[[:space:]]*$/d' /opt/app/extras.txt \
+    | xargs -r pip install --no-cache-dir --prefer-binary -c /opt/app/constraints.txt
 
 # Runtime manifests + optional build-time sanity check.
 COPY apps/${APP}/ /opt/app/appdir/

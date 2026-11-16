@@ -173,7 +173,7 @@ def main():
     e.sub(mk, r"^(\tfor input_dir in .*?); do", rf"\1 data/{name}/input; do", what="delete-input loop")
     e.sub(mk, r"^(\.PHONY: .*?)( loramgr )", rf"\1 {name}\2", what=".PHONY")
 
-    e.sub(mk, r"qwen\) echo 8195;;", rf"qwen) echo 8195;; {name}) echo {port};;", what="proxy port lookup")
+    e.sub(mk, r" esac\)", rf" {name}) echo {port};; esac)", what="proxy port lookup")
 
     # ── README.md
     rd = "README.md"
