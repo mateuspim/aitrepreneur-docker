@@ -1,0 +1,16 @@
+# <path relative to models/> <url>
+# From MOSS-IMAGE_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat.
+
+# --- text_encoders ---
+text_encoders/Qwen3.5-9B-abliterated_int8_convrot.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/Qwen3.5-9B-abliterated_int8_convrot.safetensors?download=true
+
+# --- loras ---
+loras/8-steps-dmd2-lora.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/8-steps-dmd2-lora.safetensors?download=true
+loras/moss_image_sft.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/moss_image_sft.safetensors?download=true
+loras/moss-control.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/moss-control.safetensors?download=true
+
+# --- vae ---
+vae/flux2-vae_small.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/flux2-vae_small.safetensors?download=true
+
+# --- diffusion_models ---
+diffusion_models/moss_image_base_int8_convrot.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/moss_image_base_int8_convrot.safetensors?download=true

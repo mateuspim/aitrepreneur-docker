@@ -1,0 +1,8 @@
+# <folder> <git-url> [git-ref]
+# From MINIMAX-IMAGE_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat (cloned unpinned like the installer unless a ref is given).
+ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git
+rgthree-comfy https://github.com/rgthree/rgthree-comfy
+ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes
+ComfyUI-AusBoss https://github.com/ausboss/ComfyUI-AusBoss
+ComfyUI-PixelDriftFix https://github.com/Mozer/ComfyUI-PixelDriftFix
+ComfyUI-Aitrepreneur-Image-Tools https://github.com/aitrepreneur/ComfyUI-Aitrepreneur-Image-Tools

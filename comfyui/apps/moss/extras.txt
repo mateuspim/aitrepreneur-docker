@@ -1,0 +1,3 @@
+# Extra pip packages installed after the custom nodes.
+# Taken from explicit `pip install` lines in the .bat (locked stack excluded).
+# (none in the installer)

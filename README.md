@@ -19,18 +19,20 @@ actually used by the build; the rest is optional reference).
 | `ai-toolkit` | [ostris/ai-toolkit](https://github.com/ostris/ai-toolkit) LoRA training UI | `make up` | <http://localhost:8675> |
 | `krea2` | ComfyUI + Krea 2 image generation | `make krea2` | <http://localhost:8188> |
 | `ideogram` | ComfyUI + Ideogram 4 (typography/design) | `make ideogram` | <http://localhost:8189> |
-| `ltx` | ComfyUI + LTX-2.3 video generation | `make ltx` | <http://localhost:8190> |
-| `minimax` | ComfyUI + MiniMax H3 video generation | `make minimax` | <http://localhost:8191> |
-| `anima` | ComfyUI + ANIMA 1.0 Ultra Anime | `make anima` | <http://localhost:8192> |
-| `klein` | ComfyUI + FLUX.2 Klein 9B (GGUF editing) | `make klein` | <http://localhost:8193> |
-| `qwen` | ComfyUI + Qwen Image Edit 2.1 (Ultra / Ultra Turbo) | `make qwen` | <http://localhost:8195> |
-| `loramgr` | [LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) standalone edition (organize/preview/download loras over the shared model tree; no ComfyUI, CPU-only) | `make loramgr` | <http://localhost:8194/loras> |
+| `anima` | ComfyUI + ANIMA 1.0 Ultra Anime | `make anima` | <http://localhost:8190> |
+| `moss` | ComfyUI + MOSS Image (Ultra) | `make moss` | <http://localhost:8191> |
+| `klein` | ComfyUI + FLUX.2 Klein 9B (GGUF editing) | `make klein` | <http://localhost:8192> |
+| `qwen` | ComfyUI + Qwen Image Edit 2.1 (Ultra / Ultra Turbo) | `make qwen` | <http://localhost:8193> |
+| `mmimage` | ComfyUI + MiniMax H3 Image (Ultra) | `make mmimage` | <http://localhost:8194> |
+| `minimax` | ComfyUI + MiniMax H3 video generation | `make minimax` | <http://localhost:8195> |
+| `ltx` | ComfyUI + LTX-2.3 video generation | `make ltx` | <http://localhost:8196> |
+| `loramgr` | [LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) standalone edition (organize/preview/download loras over the shared model tree; no ComfyUI, CPU-only) | `make loramgr` | <http://localhost:8197/loras> |
 
 All URLs require the shared proxy login. Run `make auth-password` first and see [security](docs/SECURITY.md). Ports are published by Caddy; apps are only accessible on the Compose network.
 
 Ports are the defaults; override them in `.env` (`AI_TOOLKIT_PORT`,
 `KREA2_PORT`, `IDEOGRAM_PORT`, `LTX_PORT`, `MINIMAX_PORT`, `ANIMA_PORT`,
-`KLEIN_PORT`, `QWEN_PORT`).
+`KLEIN_PORT`, `QWEN_PORT`, `MOSS_PORT`, `MMIMAGE_PORT`).
 
 Each app gets its own container because their Python stacks conflict
 (different torch/transformers pins). They share the models tree under
@@ -65,7 +67,7 @@ missing from the NAS models tree. First start of an app therefore takes a
 while — watch with `make logs-krea2`.
 
 Day to day: `make up` / `make krea2` / `make ideogram` / `make ltx` /
-`make minimax` / `make anima` / `make klein` / `make qwen`, `make stop-<app>`, `make logs-<app>`, `make shell-<app>`,
+`make minimax` / `make anima` / `make klein` / `make qwen` / `make moss` / `make mmimage`, `make stop-<app>`, `make logs-<app>`, `make shell-<app>`,
 `make down`.
 
 ## TUI
@@ -103,7 +105,9 @@ at `input/templates`; `minimax` seeds its Ultra and Ultra Turbo workflows the
 same way (`comfyui/apps/minimax/workflows/`); `anima` seeds its ANIMA Base Ultra
 workflow (`comfyui/apps/anima/workflows/`); `klein` seeds its Klein Edit Ultra
 workflow (`comfyui/apps/klein/workflows/`); `qwen` seeds its Qwen Image Edit
-2.1 Ultra and Ultra Turbo workflows (`comfyui/apps/qwen/workflows/`). ai-toolkit mounts the shared models tree read-only at
+2.1 Ultra and Ultra Turbo workflows (`comfyui/apps/qwen/workflows/`); `moss` seeds its MOSS Image (Ultra)
+workflows (`comfyui/apps/moss/workflows/`); `mmimage` seeds its MiniMax H3 Image (Ultra)
+workflows (`comfyui/apps/mmimage/workflows/`). ai-toolkit mounts the shared models tree read-only at
 `/comfyui-models` so training configs can reference existing checkpoints.
 
 The `loramgr` service is different: it has no GPU/torch stack at all (the

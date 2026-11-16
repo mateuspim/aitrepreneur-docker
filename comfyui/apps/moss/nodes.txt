@@ -1,0 +1,7 @@
+# <folder> <git-url> [git-ref]
+# From MOSS-IMAGE_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat (cloned unpinned like the installer unless a ref is given).
+ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git
+rgthree-comfy https://github.com/rgthree/rgthree-comfy
+ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes
+comfyui_controlnet_aux https://github.com/Fannovel16/comfyui_controlnet_aux
+RES4LYF https://github.com/ClownsharkBatwing/RES4LYF

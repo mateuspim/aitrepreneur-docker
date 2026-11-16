@@ -1,0 +1,25 @@
+# Pip constraints for every install step. Torch lines are prepended from the
+# Dockerfile ARGs at build time. Reference installer: MOSS-IMAGE_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat
+# (ComfyUI v0.42.1). Windows portable installers add no pins of their
+# own; this is the project baseline — tune it if the build fails to resolve.
+Pillow>=11.0.0
+# rembg/albumentationsx need numpy>=2.3; numba caps it below 2.6.
+numpy>=2.3,<2.6
+
+# Every cv2 provider on the same version (whichever installs last wins).
+# opencv 4.12 caps numpy<2.3, so stay on 4.13+.
+opencv-python-headless==4.13.0.92
+opencv-python==4.13.0.92
+opencv-contrib-python==4.13.0.92
+
+# Resolver guards: without these pip backtracks into py<3.12-only sdists
+# (numba 0.58) or into the old albumentations/albucore pair.
+numba==0.67.0
+scikit-image==0.26.0
+albumentationsx==2.4.13
+albucore==0.2.20
+# ComfyUI_essentials: 1.2.12 is the last release without the old
+# albumentations dependency (conflicts with albumentationsx).
+transparent-background==1.2.12
+pixeloe==0.1.4
+rembg==2.0.84

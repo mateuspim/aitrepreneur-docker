@@ -8,15 +8,6 @@
     }
 }
 
-:8675 {
-    import auth
-    reverse_proxy ai-toolkit:8675
-    handle_errors {
-        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
-        respond @unavailable "ai-toolkit is not running — start it with make up or the TUI" {err.status_code}
-    }
-}
-
 :8188 {
     import auth
     reverse_proxy krea2:8188
@@ -37,24 +28,6 @@
 
 :8190 {
     import auth
-    reverse_proxy ltx:8188
-    handle_errors {
-        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
-        respond @unavailable "ltx is not running — start it with make ltx or the TUI" {err.status_code}
-    }
-}
-
-:8191 {
-    import auth
-    reverse_proxy minimax:8188
-    handle_errors {
-        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
-        respond @unavailable "minimax is not running — start it with make minimax or the TUI" {err.status_code}
-    }
-}
-
-:8192 {
-    import auth
     reverse_proxy anima:8188
     handle_errors {
         @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
@@ -62,7 +35,16 @@
     }
 }
 
-:8193 {
+:8191 {
+    import auth
+    reverse_proxy moss:8188
+    handle_errors {
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "moss is not running — start it with make moss or the TUI" {err.status_code}
+    }
+}
+
+:8192 {
     import auth
     reverse_proxy klein:8188
     handle_errors {
@@ -71,7 +53,7 @@
     }
 }
 
-:8195 {
+:8193 {
     import auth
     reverse_proxy qwen:8188
     handle_errors {
@@ -82,9 +64,45 @@
 
 :8194 {
     import auth
+    reverse_proxy mmimage:8188
+    handle_errors {
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "mmimage is not running — start it with make mmimage or the TUI" {err.status_code}
+    }
+}
+
+:8195 {
+    import auth
+    reverse_proxy minimax:8188
+    handle_errors {
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "minimax is not running — start it with make minimax or the TUI" {err.status_code}
+    }
+}
+
+:8196 {
+    import auth
+    reverse_proxy ltx:8188
+    handle_errors {
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "ltx is not running — start it with make ltx or the TUI" {err.status_code}
+    }
+}
+
+:8197 {
+    import auth
     reverse_proxy loramgr:8188
     handle_errors {
         @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
         respond @unavailable "loramgr is not running — start it with make loramgr or the TUI" {err.status_code}
+    }
+}
+
+:8675 {
+    import auth
+    reverse_proxy ai-toolkit:8675
+    handle_errors {
+        @unavailable expression `{err.status_code} == 502 || {err.status_code} == 503`
+        respond @unavailable "ai-toolkit is not running — start it with make up or the TUI" {err.status_code}
     }
 }

@@ -1,0 +1,12 @@
+# <path relative to models/> <url>
+# From MINIMAX-IMAGE_ULTRA-COMFYUI-MANAGER_AUTO_INSTALL.bat.
+
+# --- text_encoders ---
+text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/qwen3vl_32b_minimax_h3_int8_convrot.safetensors?download=true
+text_encoders/Qwen3.5-9B-abliterated_int8_convrot.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/Qwen3.5-9B-abliterated_int8_convrot.safetensors?download=true
+
+# --- vae ---
+vae/minimax_h3_image_vae_fp16.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/minimax_h3_image_vae_fp16.safetensors?download=true
+
+# --- diffusion_models ---
+diffusion_models/minimax_h3_image_pruned_int8_convrot.safetensors https://huggingface.co/Aitrepreneur/FLX/resolve/main/minimax_h3_image_pruned_int8_convrot.safetensors?download=true

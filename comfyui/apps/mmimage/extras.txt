@@ -1,0 +1,4 @@
+# Extra pip packages installed after the custom nodes.
+# The installer adds none; the requirement sanitizer strips opencv, which
+# ComfyUI-PixelDriftFix imports (cv2).
+opencv-python-headless==4.13.0.92

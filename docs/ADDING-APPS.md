@@ -184,10 +184,15 @@ Add a service block (copy from an existing app and change names):
 - ai-toolkit: 8675
 - krea2: 8188
 - ideogram: 8189
-- ltx: 8190
-- minimax: 8191
-- anima: 8192
-- **Next available: 8193**
+- anima: 8190
+- moss: 8191
+- klein: 8192
+- qwen: 8193
+- mmimage: 8194
+- minimax: 8195
+- ltx: 8196
+- loramgr: 8197
+- **Next available: 8198** (`scripts/wire-app.py` picks it automatically)
 
 ### Step 8: .env and .env.example
 
