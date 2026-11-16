@@ -12,6 +12,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import yaml
@@ -69,7 +70,7 @@ def compose_config(env):
     except (OSError, yaml.YAMLError) as e:
         return {}, f"Compose config unavailable: {e}"
     if "sudo" in DOCKER[0] and ("password" in err.lower() or "terminal" in err.lower() or "sudo" in err.lower()):
-        error = "docker unavailable: sudo needs a password — run via make tui"
+        error = "docker unavailable: sudo needs a password — press a"
     else:
         error = "docker unavailable: " + (err.strip().splitlines()[-1] if err.strip() else "Compose config failed")
     return services, error
@@ -113,6 +114,40 @@ def model_path(rel, service, env):
     if best:
         return Path(best[0]).expanduser() / target[len(best[1]):].lstrip("/")
     return root / rel
+
+
+BUSY_SECS = 120  # same rule as scripts/download-models.py and the entrypoint
+_remote_sizes = {}
+
+
+def remote_size(url):
+    """Expected size from Hugging Face's HEAD (x-linked-size); cached per URL."""
+    if url not in _remote_sizes:
+        code, out, _ = run(["curl", "-sI", "--max-time", "5", url], timeout=8)
+        m = re.search(r"^x-linked-size:\s*(\d+)", out, re.I | re.M) if not code else None
+        _remote_sizes[url] = int(m.group(1)) if m else None
+    return _remote_sizes[url]
+
+
+def partials(models, missing, service, env):
+    """.part files of missing models: rel -> (bytes, expected, active)."""
+    urls = dict(models)
+    out = {}
+    for rel in missing:
+        part = Path(str(model_path(rel, service, env)) + ".part")
+        try:
+            st = part.stat()
+        except OSError:
+            continue
+        out[rel] = (st.st_size, remote_size(urls.get(rel, "")), time.time() - st.st_mtime < BUSY_SECS)
+    return out
+
+
+def human(n):
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.1f} {unit}" if unit != "B" else f"{n} B"
+        n /= 1024
 
 
 def network():
@@ -172,18 +207,20 @@ def collect():
         present = [r[0] for r in models if model_path(r[0], svc, env).is_file()]
         missing = [r[0] for r in models if r[0] not in present]
         logs = []
+        # .part files show downloads from any source: this app's container,
+        # another app sharing the file, or `make download-models` on the host.
+        parts = partials(models, missing, svc, env)
         if state == "running" and path.is_dir():
             _, out, _ = run(DOCKER + ["compose", "--profile", "*", "logs", "--tail", "100", name])
             logs = [line for line in out.splitlines() if "[DL]" in line][-8:]
             # The entrypoint writes one [DL] line before curl, which can run
             # for hours. Its .part file persists throughout the download.
-            partial = any(Path(str(model_path(rel, svc, env)) + ".part").is_file() for rel in missing)
-            if partial:
+            if any(active for _, _, active in parts.values()):
                 state = "downloading models"
         port = port_for(name, svc, services, env)
         suffix = "/loras" if name == "loramgr" else ""
         urls = [f"http://{host}:{port}{suffix}" for host in ["localhost", *lan, *ts, *([dns] if dns else [])] if port != "?" and name != "proxy"]
-        data["services"][name] = {"state": state, "port": port, "urls": urls, "gpu": svc.get("runtime") == "nvidia" or bool(svc.get("gpus")), "profiles": svc.get("profiles", []), "image": image, "built": built, "ref": env.get("COMFY_REF_" + name.upper().replace("-", "_"), ""), "app": path.is_dir(), "workflows": [p.name for p in sorted((path / "workflows").glob("*")) if p.is_file()], "models_present": present, "models_missing": missing, "nodes": len(manifest(path / "nodes.txt")), "downloads": logs}
+        data["services"][name] = {"state": state, "port": port, "urls": urls, "gpu": svc.get("runtime") == "nvidia" or bool(svc.get("gpus")), "profiles": svc.get("profiles", []), "image": image, "built": built, "ref": env.get("COMFY_REF_" + name.upper().replace("-", "_"), ""), "app": path.is_dir(), "workflows": [p.name for p in sorted((path / "workflows").glob("*")) if p.is_file()], "models_present": present, "models_missing": missing, "partials": parts, "nodes": len(manifest(path / "nodes.txt")), "downloads": logs}
     if "proxy" in data["services"]:
         data["proxy"] = f"{data['services']['proxy']['state']} (basic auth configured; not independently verified)"
     return data
@@ -253,7 +290,7 @@ class Output(ModalScreen):
                 log.write(Text(line.decode(errors="replace").rstrip()))
             code = await self.proc.wait()
             if code and self.command[:2] == ["sudo", "-n"]:
-                log.write("If sudo needs a password, exit and run make tui again.")
+                log.write("If sudo needs a password, press Esc then a to re-authenticate.")
             if code == 0 and self.on_success:
                 self.command, self.on_success = self.on_success, None
                 await self.stream()
@@ -300,7 +337,7 @@ class Dashboard(App):
     Output Label { height: 1; }
     Output RichLog { height: 1fr; border: solid $primary; }
     """
-    BINDINGS = [Binding("s", "start", "Start"), Binding("x", "stop", "Stop"), Binding("r", "restart", "Restart"), Binding("L", "logs", "Logs"), Binding("h", "focus_services", "Services", show=False), Binding("l", "focus_detail", "Details", show=False), Binding("j", "move_down", "Down", show=False), Binding("k", "move_up", "Up", show=False), Binding("b", "build", "Build"), Binding("o", "open_url", "Open"), Binding("c", "copy_url", "Copy"), Binding("u", "check", "Check"), Binding("X", "stop_all", "Stop all", priority=True), Binding("question_mark", "help", "Help"), Binding("q", "quit", "Quit")]
+    BINDINGS = [Binding("s", "start", "Start"), Binding("x", "stop", "Stop"), Binding("r", "restart", "Restart"), Binding("L", "logs", "Logs"), Binding("h", "focus_services", "Services", show=False), Binding("l", "focus_detail", "Details", show=False), Binding("j", "move_down", "Down", show=False), Binding("k", "move_up", "Up", show=False), Binding("b", "build", "Build"), Binding("o", "open_url", "Open"), Binding("c", "copy_url", "Copy"), Binding("u", "check", "Check"), Binding("X", "stop_all", "Stop all", priority=True), Binding("a", "reauth", "Sudo"), Binding("question_mark", "help", "Help"), Binding("q", "quit", "Quit")]
 
     def __init__(self):
         super().__init__()
@@ -334,8 +371,23 @@ class Dashboard(App):
         async def keep():
             code, _, _ = await asyncio.to_thread(run, ["sudo", "-n", "-v"])
             if code:
-                self.notify("sudo expired; restart with make tui", severity="error")
+                self.notify("sudo expired; the next action asks for your password (or press a)", severity="warning")
         self.run_worker(keep())
+
+    def sudo_ok(self):
+        return DOCKER[:2] != ["sudo", "-n"] or run(["sudo", "-n", "true"])[0] == 0
+
+    def action_reauth(self):
+        """Prompt for the sudo password in the terminal, then come back."""
+        if DOCKER[:2] != ["sudo", "-n"]:
+            return True
+        with self.suspend():
+            print("Dashboard needs sudo again (it expired, e.g. after sleep).")
+            ok = subprocess.run(["sudo", "-v"]).returncode == 0
+        if not ok:
+            self.notify("sudo authentication failed", severity="error")
+        self.refresh_state()
+        return ok
 
     def refresh_state(self):
         if self.refreshing:
@@ -361,7 +413,7 @@ class Dashboard(App):
 
         services = d['services']
         running = sum(item['state'] in ('running', 'downloading models') for item in services.values())
-        downloading = sum(item['state'] == 'downloading models' for item in services.values())
+        downloading = sum(item['state'] == 'downloading models' or any(a for _, _, a in item.get('partials', {}).values()) for item in services.values())
         unknown = sum(item['state'] == 'unknown' for item in services.values())
         status = Text("STACK  /  SERVICES\n", style="bold #87a9ca")
         if unknown:
@@ -407,6 +459,8 @@ class Dashboard(App):
             label.append("● ", style=self.state_style(item['state']))
             label.append(name, style="bold #e6eef9")
             label.append("\n  " + item['state'].upper(), style=self.state_style(item['state']))
+            if item['state'] != 'downloading models' and any(a for _, _, a in item.get('partials', {}).values()):
+                label.append("  ↓ models", style="#79c9ff")
             if name != 'proxy' and item['port'] != '?':
                 label.append("  ·  :" + item['port'], style="#8da6c4")
             if rebuild:
@@ -451,7 +505,8 @@ class Dashboard(App):
             line("COMFYUI REF", item['ref'] or 'default')
             section("App resources")
             present, missing = item['models_present'], item['models_missing']
-            line("MODELS", f"{len(present)} present  ·  {len(missing)} missing", "#f5bd75" if missing else "#65d9a3")
+            active = sum(a for _, _, a in item['partials'].values())
+            line("MODELS", f"{len(present)} present  ·  {len(missing)} missing" + (f"  ·  {active} downloading" if active else ""), "#f5bd75" if missing else "#65d9a3")
             line("NODES", item['nodes'])
             line("WORKFLOWS", len(item['workflows']))
             for workflow in item['workflows']:
@@ -459,7 +514,14 @@ class Dashboard(App):
             if missing:
                 section("Missing models")
                 for model in missing:
-                    text.append("  ○ " + model + "\n", style="#f5bd75")
+                    part = item['partials'].get(model)
+                    if not part:
+                        text.append("  ○ " + model + "\n", style="#f5bd75")
+                        continue
+                    done, total, active = part
+                    progress = human(done) + (f" / {human(total)}  {done * 100 // total}%" if total else "")
+                    text.append(("  ↓ " if active else "  ◐ ") + model + "\n", style="#79c9ff" if active else "#f5bd75")
+                    text.append("      " + progress + ("" if active else "  (paused; rerun make download-models to resume)") + "\n", style="#79c9ff" if active else "#8da6c4")
             if present:
                 section("Available models")
                 for model in present:
@@ -499,6 +561,8 @@ class Dashboard(App):
         return DOCKER + ["compose", "--profile", "*", *args]
 
     def output(self, title, command, extra_env=None, on_success=None):
+        if command[:2] == ["sudo", "-n"] and not self.sudo_ok() and not self.action_reauth():
+            return
         self.push_screen(Output(title, command, extra_env, on_success), lambda _: self.refresh_state())
 
     def action_start(self):
@@ -582,7 +646,7 @@ class Dashboard(App):
     def action_open_url(self): self.url_action('xdg-open')
     def action_copy_url(self): self.url_action('wl-copy')
     def action_help(self):
-        self.push_screen(Confirm('h/l focus list/details · j/k move or scroll\ns start · x stop · r restart · L logs · b build\no open URL · c copy URL · u check app · X stop all\nq quit · Esc close pane'), lambda _: None)
+        self.push_screen(Confirm('h/l focus list/details · j/k move or scroll\ns start · x stop · r restart · L logs · b build\no open URL · c copy URL · u check app · X stop all\na re-auth sudo · q quit · Esc close pane'), lambda _: None)
 
 
 def main():

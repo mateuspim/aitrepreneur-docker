@@ -12,6 +12,9 @@ tui: ## Open the interactive service dashboard
 	sudo -v
 	uv run scripts/tui.py
 
+download-models: setup ## Download + integrity-check every app's models (APPS="ltx minimax" to limit; ARGS=--dry-run to only report, ARGS=--verify to also SHA-256 existing files)
+	sudo docker compose --profile '*' config --format json | sudo HF_TOKEN="$$(grep -s "^HF_TOKEN=" .env | cut -d= -f2-)" python3 scripts/download-models.py $(ARGS) $(APPS)
+
 setup-model-dirs: ## Reorganise shared loras/controlnet/checkpoints/embeddings into app subfolders (dry-run; pass ARGS=--apply)
 	@sudo bash scripts/migrate-model-dirs.sh $(ARGS)
 
@@ -94,4 +97,4 @@ delete-input: ## Delete all persisted ComfyUI input files (keeps the input folde
 		fi; \
 	done
 
-.PHONY: tui proxy auth-password help setup setup-model-dirs build up up-all krea2 ideogram ltx minimax anima klein qwen moss mmimage loramgr down status upgrade version gpu-check delete-input
+.PHONY: tui download-models proxy auth-password help setup setup-model-dirs build up up-all krea2 ideogram ltx minimax anima klein qwen moss mmimage loramgr down status upgrade version gpu-check delete-input

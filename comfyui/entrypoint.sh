@@ -43,6 +43,16 @@ if [[ -f "$APP_DIR/models.txt" ]]; then
       echo " [OK]  $relpath"
       continue
     fi
+    # A .part that is still growing belongs to another downloader (the host's
+    # `make download-models` or another app sharing this file): wait for it.
+    while [[ -f "$target.part" && ! -f "$target" ]] && (( $(date +%s) - $(stat -c %Y "$target.part") < 120 )); do
+      echo " [WAIT] $relpath is being downloaded elsewhere"
+      sleep 30
+    done
+    if [[ -f "$target" ]]; then
+      echo " [OK]  $relpath"
+      continue
+    fi
     echo " [DL]  $relpath"
     mkdir -p "$(dirname "$target")"
     curl -L --fail -C - --retry 5 --retry-delay 5 --retry-all-errors -o "$target.part" "$url"
